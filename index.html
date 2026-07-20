@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Week-over-Week Performance Dashboard</title>
+<style>
+:root {
+    --bg: #0f0f0f;
+    --surface-0: #1a1a1a;
+    --surface-1: #222;
+    --surface-2: #272727;
+    --border: #333;
+    --text: #e8e8e8;
+    --text-secondary: #999;
+    --green: #1D9E75;
+    --red: #D85A30;
+    --amber: #eda100;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+.subtitle {
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-bottom: 20px;
+}
+.filter-bar {
+    margin-bottom: 24px;
+}
+.filter-bar label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-secondary);
+    margin-right: 8px;
+}
+.filter-bar select {
+    background: var(--surface-1);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    min-width: 200px;
+    outline: none;
+}
+.filter-bar select:focus {
+    border-color: var(--green);
+}
+.kpi-block {
+    background: var(--surface-0);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+}
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+.kpi-card {
+    background: var(--surface-2);
+    border-radius: 8px;
+    padding: 12px;
+}
+.kpi-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    letter-spacing: 0.3px;
+    margin-bottom: 4px;
+}
+.kpi-val {
+    font-size: 22px;
+    font-weight: 600;
+}
+.kpi-delta {
+    font-size: 11px;
+    margin-top: 2px;
+}
+.up { color: #4ade80; font-weight: 500; }
+.dn { color: #f87171; font-weight: 500; }
+.neu { color: #888; }
+.table-wrap {
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+th {
+    text-align: left;
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    background: var(--surface-0);
+}
+td {
+    padding: 8px 8px;
+    border-bottom: 1px solid #1a1a1a;
+    white-space: nowrap;
+}
+.tr-alt { background: var(--surface-1); }
+.right { text-align: right; }
+.week-cell { font-weight: 500; color: var(--text); }
+
+@media (max-width: 900px) {
+    body { padding: 12px; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .table-wrap { overflow-x: auto; }
+    h1 { font-size: 17px; }
+}
+@media (max-width: 480px) {
+    .kpi-grid { grid-template-columns: 1fr; }
+    .filter-bar select { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<h1>📊 Week-over-Week Performance Dashboard</h1>
+<p class="subtitle">Mon–Sun weeks · Generated Jul 20, 2026 · All search campaigns across 5 accounts</p>
+
+<div class="filter-bar">
+    <label for="cluster-select">Cluster</label>
+    <select id="cluster-select"></select>
+</div>
+
+<div id="kpi-container" class="kpi-block">
+    <div id="kpi-grid" class="kpi-grid"></div>
+</div>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Week</th>
+                <th class="right">Spend</th>
+                <th class="right">Δ</th>
+                <th class="right">Impressions</th>
+                <th class="right">Δ</th>
+                <th class="right">Signups</th>
+                <th class="right">Δ</th>
+                <th class="right">CPS</th>
+                <th class="right">Payers</th>
+                <th class="right">VBB ROAS</th>
+                <th class="right">Δ</th>
+            </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+    </table>
+</div>
+
+<script>
+const DATA = {"AI Construction":[{"spend":0,"imp":0,"clicks":0,"signups":0,"payers":0,"vbb_value":0,"week":"2026-06-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"payers":0,"vbb_value":0,"week":"2026-06-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"payers":0,"vbb_value":0,"week":"2026-06-29"},{"spend":0,"imp":0,"clicks":0,"signups":0,"payers":0,"vbb_value":0,"week":"2026-07-06"},{"spend":750.41,"imp":1232,"clicks":31,"signups":3,"payers":0,"vbb_value":86.28,"week":"2026-07-13"}],"AI Note Taker":[{"spend":0,"imp":0,"clicks":0,"signups":0,"payers":0,"vbb_value":0,"week":"2026-06-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"payers":0,"vbb_value":0,"week":"2026-06-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"payers":0,"vbb_value":0,"week":"2026-06-29"},{"spend":1964.17,"imp":3577,"clicks":190,"signups":31,"payers":0,"vbb_value":401.3,"week":"2026-07-06"},{"spend":36248.67,"imp":76035,"clicks":3352,"signups":661.9,"payers":0,"vbb_value":8934.78,"week":"2026-07-13"}],"All":[{"spend":1173996.27,"imp":3305290,"clicks":180470,"signups":22055.6,"payers":865,"vbb_value":3546683.49,"week":"2026-06-15"},{"spend":1301892.6,"imp":3598022,"clicks":179207,"signups":21537.2,"payers":820,"vbb_value":3755556.42,"week":"2026-06-22"},{"spend":1226680.88,"imp":3466207,"clicks":175663,"signups":21677.4,"payers":846,"vbb_value":2880256.62,"week":"2026-06-29"},{"spend":1336750.9,"imp":3723960,"clicks":186951,"signups":23818.6,"payers":762,"vbb_value":2843353.19,"week":"2026-07-06"},{"spend":1342517.7,"imp":3765572,"clicks":200468,"signups":26512.5,"payers":689,"vbb_value":2542220.14,"week":"2026-07-13"}],"Brand":[{"spend":165457.22,"imp":341166,"clicks":98775,"signups":7799.2,"payers":752,"vbb_value":2404700.84,"week":"2026-06-15"},{"spend":163130.31,"imp":308797,"clicks":90341,"signups":6741.6,"payers":695,"vbb_value":2702792.72,"week":"2026-06-22"},{"spend":141170.34,"imp":296682,"clicks":87410,"signups":6714.6,"payers":717,"vbb_value":1937654.03,"week":"2026-06-29"},{"spend":146397.17,"imp":298644,"clicks":87832,"signups":6715,"payers":642,"vbb_value":1780149.09,"week":"2026-07-06"},{"spend":147774.84,"imp":303578,"clicks":88687,"signups":6496.5,"payers":591,"vbb_value":1689121.83,"week":"2026-07-13"}],"Brazil":[{"spend":30746.1,"imp":310971,"clicks":12286,"signups":2762.1,"payers":26,"vbb_value":143826.02,"week":"2026-06-15"},{"spend":30494.1,"imp":313024,"clicks":11019,"signups":2507.6,"payers":37,"vbb_value":105918.68,"week":"2026-06-22"},{"spend":28688.1,"imp":289548,"clicks":10502,"signups":2507,"payers":42,"vbb_value":124042.19,"week":"2026-06-29"},{"spend":28183.44,"imp":275400,"clicks":9732,"signups":2318.6,"payers":23,"vbb_value":125743.46,"week":"2026-07-06"},{"spend":30515.54,"imp":292922,"clicks":10593,"signups":2516.2,"payers":31,"vbb_value":90802.62,"week":"2026-07-13"}],"Calendar":[{"spend":37943.09,"imp":83035,"clicks":4860,"signups":930.1,"payers":3,"vbb_value":57345.62,"week":"2026-06-15"},{"spend":33669.96,"imp":74399,"clicks":4159,"signups":821.8,"payers":4,"vbb_value":44387.58,"week":"2026-06-22"},{"spend":26901.56,"imp":72075,"clicks":4078,"signups":722.6,"payers":2,"vbb_value":40482.5,"week":"2026-06-29"},{"spend":30001.29,"imp":86862,"clicks":4688,"signups":886.8,"payers":2,"vbb_value":42899.89,"week":"2026-07-06"},{"spend":47635.29,"imp":126741,"clicks":7917,"signups":1572.5,"payers":2,"vbb_value":49167.16,"week":"2026-07-13"}],"Canada":[{"spend":31590.88,"imp":74883,"clicks":6931,"signups":775,"payers":51,"vbb_value":156176.74,"week":"2026-06-15"},{"spend":31899.96,"imp":73706,"clicks":6257,"signups":628,"payers":43,"vbb_value":117137.9,"week":"2026-06-22"},{"spend":31695.12,"imp":86669,"clicks":6287,"signups":611.2,"payers":45,"vbb_value":91667.48,"week":"2026-06-29"},{"spend":38877.43,"imp":99813,"clicks":7049,"signups":755.4,"payers":45,"vbb_value":129921.45,"week":"2026-07-06"},{"spend":40444.77,"imp":133099,"clicks":7676,"signups":899.7,"payers":33,"vbb_value":85553.13,"week":"2026-07-13"}],"Competitors":[{"spend":201011.34,"imp":1085504,"clicks":13458,"signups":2108.4,"payers":28,"vbb_value":257749.75,"week":"2026-06-15"},{"spend":193813.01,"imp":1112583,"clicks":13259,"signups":2075.9,"payers":39,"vbb_value":182210.37,"week":"2026-06-22"},{"spend":179784.24,"imp":1009818,"clicks":12507,"signups":2033.6,"payers":35,"vbb_value":187193.73,"week":"2026-06-29"},{"spend":200687.52,"imp":1080754,"clicks":13221,"signups":2137.8,"payers":40,"vbb_value":170797.11,"week":"2026-07-06"},{"spend":224134.65,"imp":1197167,"clicks":14771,"signups":2404.7,"payers":26,"vbb_value":178719.21,"week":"2026-07-13"}],"DACH":[{"spend":21480.91,"imp":80031,"clicks":5584,"signups":481.8,"payers":18,"vbb_value":70695.03,"week":"2026-06-15"},{"spend":18950.38,"imp":72148,"clicks":5042,"signups":412.3,"payers":16,"vbb_value":80071.37,"week":"2026-06-22"},{"spend":20467.92,"imp":77422,"clicks":5448,"signups":454,"payers":19,"vbb_value":101835.77,"week":"2026-06-29"},{"spend":21598.74,"imp":83801,"clicks":5507,"signups":467.5,"payers":22,"vbb_value":84325.78,"week":"2026-07-06"},{"spend":25536.8,"imp":99605,"clicks":6005,"signups":508.6,"payers":23,"vbb_value":62022.98,"week":"2026-07-13"}],"Finance - Agents":[{"spend":0,"imp":0,"clicks":0,"signups":0,"payers":0,"vbb_value":0,"week":"2026-06-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"payers":0,"vbb_value":0,"week":"2026-06-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"payers":0,"vbb_value":0,"week":"2026-06-29"},{"spend":4720.5,"imp":3916,"clicks":209,"signups":37.5,"payers":0,"vbb_value":3748.37,"week":"2026-07-06"},{"spend":6596.89,"imp":3758,"clicks":251,"signups":45,"payers":0,"vbb_value":582.41,"week":"2026-07-13"}],"France":[{"spend":19957.19,"imp":93831,"clicks":8276,"signups":1001.5,"payers":36,"vbb_value":98233.62,"week":"2026-06-15"},{"spend":20017.39,"imp":89037,"clicks":7678,"signups":881.3,"payers":26,"vbb_value":91809.23,"week":"2026-06-22"},{"spend":21420.74,"imp":93105,"clicks":7754,"signups":915.1,"payers":21,"vbb_value":71695.74,"week":"2026-06-29"},{"spend":21357.62,"imp":94038,"clicks":7483,"signups":883.6,"payers":13,"vbb_value":79789.53,"week":"2026-07-06"},{"spend":20799.48,"imp":76849,"clicks":5882,"signups":664,"payers":11,"vbb_value":59494.15,"week":"2026-07-13"}],"Gantt":[{"spend":42910.86,"imp":157138,"clicks":6199,"signups":1350.2,"payers":10,"vbb_value":74572.07,"week":"2026-06-15"},{"spend":42986.82,"imp":152280,"clicks":6134,"signups":1307.9,"payers":8,"vbb_value":61421.73,"week":"2026-06-22"},{"spend":31220.1,"imp":116858,"clicks":5088,"signups":1132.3,"payers":5,"vbb_value":32584.32,"week":"2026-06-29"},{"spend":34139.44,"imp":122720,"clicks":5569,"signups":1234.9,"payers":7,"vbb_value":36235.92,"week":"2026-07-06"},{"spend":44868.04,"imp":132430,"clicks":6721,"signups":1475.8,"payers":4,"vbb_value":38258.2,"week":"2026-07-13"}],"General":[{"spend":50553.57,"imp":117009,"clicks":5402,"signups":1224.5,"payers":8,"vbb_value":62299.45,"week":"2026-06-15"},{"spend":41741.27,"imp":111583,"clicks":5070,"signups":1080.1,"payers":11,"vbb_value":60348.87,"week":"2026-06-22"},{"spend":38568.51,"imp":103024,"clicks":4829,"signups":1027.2,"payers":8,"vbb_value":52633.36,"week":"2026-06-29"},{"spend":33810.25,"imp":98500,"clicks":5084,"signups":1149.1,"payers":6,"vbb_value":50033.3,"week":"2026-07-06"},{"spend":30107.68,"imp":91050,"clicks":4816,"signups":1101.1,"payers":4,"vbb_value":37092.26,"week":"2026-07-13"}],"Generic - Agents":[{"spend":11415.21,"imp":15694,"clicks":673,"signups":154.8,"payers":0,"vbb_value":1319.44,"week":"2026-06-15"},{"spend":40453.53,"imp":50357,"clicks":2316,"signups":590.4,"payers":2,"vbb_value":17133.16,"week":"2026-06-22"},{"spend":46134.44,"imp":63954,"clicks":2647,"signups":656.2,"payers":0,"vbb_value":10749.15,"week":"2026-06-29"},{"spend":61311.75,"imp":85724,"clicks":3615,"signups":887.2,"payers":1,"vbb_value":13174.68,"week":"2026-07-06"},{"spend":45146.04,"imp":60102,"clicks":2375,"signups":557.4,"payers":0,"vbb_value":14721.25,"week":"2026-07-13"}],"HR - Agents":[{"spend":26759.13,"imp":32117,"clicks":970,"signups":105.5,"payers":0,"vbb_value":13641.54,"week":"2026-06-15"},{"spend":61650.43,"imp":86799,"clicks":3115,"signups":276.6,"payers":2,"vbb_value":7734.02,"week":"2026-06-22"},{"spend":40790.68,"imp":60523,"clicks":2023,"signups":197,"payers":2,"vbb_value":5678.72,"week":"2026-06-29"},{"spend":54501.57,"imp":84255,"clicks":2784,"signups":278.1,"payers":0,"vbb_value":15789.6,"week":"2026-07-06"},{"spend":59436.72,"imp":102152,"clicks":2831,"signups":325,"payers":0,"vbb_value":3488.03,"week":"2026-07-13"}],"IT - Agents":[{"spend":19756.49,"imp":44949,"clicks":763,"signups":96.2,"payers":0,"vbb_value":1984.69,"week":"2026-06-15"},{"spend":11486.29,"imp":27564,"clicks":449,"signups":50.7,"payers":0,"vbb_value":1412.02,"week":"2026-06-22"},{"spend":3800.8,"imp":9941,"clicks":175,"signups":26,"payers":0,"vbb_value":300.02,"week":"2026-06-29"},{"spend":7082.95,"imp":22742,"clicks":321,"signups":48.5,"payers":0,"vbb_value":1742.37,"week":"2026-07-06"},{"spend":9979.97,"imp":21787,"clicks":430,"signups":66.5,"payers":0,"vbb_value":422.92,"week":"2026-07-13"}],"LATAM":[{"spend":43221.32,"imp":393027,"clicks":22740,"signups":4325.6,"payers":55,"vbb_value":194406.62,"week":"2026-06-15"},{"spend":41776.2,"imp":389936,"clicks":20398,"signups":3906,"payers":56,"vbb_value":170841.45,"week":"2026-06-22"},{"spend":38935.6,"imp":365793,"clicks":19825,"signups":3814.5,"payers":58,"vbb_value":248665.19,"week":"2026-06-29"},{"spend":43206.77,"imp":376774,"clicks":20858,"signups":3960.3,"payers":52,"vbb_value":267467.57,"week":"2026-07-06"},{"spend":47337,"imp":391457,"clicks":23684,"signups":4310.4,"payers":31,"vbb_value":159042.24,"week":"2026-07-13"}],"Legal - Agents":[{"spend":21189.78,"imp":30300,"clicks":1240,"signups":214.6,"payers":0,"vbb_value":6646.14,"week":"2026-06-15"},{"spend":37074.89,"imp":61459,"clicks":2017,"signups":339.3,"payers":1,"vbb_value":7939.65,"week":"2026-06-22"},{"spend":29037.96,"imp":47925,"clicks":1564,"signups":229.1,"payers":0,"vbb_value":5632.9,"week":"2026-06-29"},{"spend":20407.58,"imp":35244,"clicks":1168,"signups":231.8,"payers":0,"vbb_value":4685.35,"week":"2026-07-06"},{"spend":10778.82,"imp":21535,"clicks":719,"signups":133,"payers":0,"vbb_value":1009.31,"week":"2026-07-13"}],"Logistics":[{"spend":19580.85,"imp":21773,"clicks":928,"signups":119.2,"payers":3,"vbb_value":28542.49,"week":"2026-06-15"},{"spend":20247.63,"imp":24582,"clicks":1184,"signups":152.8,"payers":2,"vbb_value":58199.98,"week":"2026-06-22"},{"spend":19180.63,"imp":24642,"clicks":1079,"signups":113.1,"payers":0,"vbb_value":10776.87,"week":"2026-06-29"},{"spend":23630.69,"imp":30490,"clicks":1299,"signups":168,"payers":3,"vbb_value":11010.86,"week":"2026-07-06"},{"spend":24952.93,"imp":39368,"clicks":1977,"signups":218.3,"payers":4,"vbb_value":17691.95,"week":"2026-07-13"}],"Marketing":[{"spend":62775.72,"imp":124138,"clicks":5397,"signups":874.4,"payers":2,"vbb_value":104351.9,"week":"2026-06-15"},{"spend":56954.94,"imp":136927,"clicks":4717,"signups":755.5,"payers":6,"vbb_value":61145.72,"week":"2026-06-22"},{"spend":56681.67,"imp":134691,"clicks":4998,"signups":984.4,"payers":5,"vbb_value":45860.64,"week":"2026-06-29"},{"spend":53669.64,"imp":144689,"clicks":4808,"signups":988.1,"payers":7,"vbb_value":64307.78,"week":"2026-07-06"},{"spend":62128.1,"imp":147573,"clicks":5775,"signups":1079,"payers":8,"vbb_value":19038.5,"week":"2026-07-13"}],"Marketing - Agents":[{"spend":9997.28,"imp":11020,"clicks":497,"signups":109.5,"payers":0,"vbb_value":2436.9,"week":"2026-06-15"},{"spend":14670.64,"imp":14973,"clicks":659,"signups":130.5,"payers":0,"vbb_value":2780.61,"week":"2026-06-22"},{"spend":26782.31,"imp":42593,"clicks":1835,"signups":430,"payers":1,"vbb_value":7296.97,"week":"2026-06-29"},{"spend":24931.07,"imp":43683,"clicks":1971,"signups":489.3,"payers":2,"vbb_value":13132.15,"week":"2026-07-06"},{"spend":29477.93,"imp":37446,"clicks":1972,"signups":464,"payers":0,"vbb_value":3548.3,"week":"2026-07-13"}],"Mexico":[{"spend":2712.17,"imp":14560,"clicks":386,"signups":58,"payers":0,"vbb_value":2654.25,"week":"2026-06-15"},{"spend":3472.73,"imp":18662,"clicks":532,"signups":71.8,"payers":1,"vbb_value":4436.77,"week":"2026-06-22"},{"spend":4035.38,"imp":18158,"clicks":555,"signups":75.3,"payers":1,"vbb_value":4271.91,"week":"2026-06-29"},{"spend":4036.24,"imp":18950,"clicks":546,"signups":72.6,"payers":0,"vbb_value":3195.36,"week":"2026-07-06"},{"spend":4097.88,"imp":18390,"clicks":573,"signups":83.9,"payers":1,"vbb_value":3359.33,"week":"2026-07-13"}],"Other":[{"spend":217629.77,"imp":360896,"clicks":6949,"signups":814.3,"payers":11,"vbb_value":153063.88,"week":"2026-06-15"},{"spend":234753.99,"imp":415639,"clicks":7437,"signups":842,"payers":9,"vbb_value":139246.03,"week":"2026-06-22"},{"spend":252357.38,"imp":471353,"clicks":8224,"signups":965.8,"payers":11,"vbb_value":86023.32,"week":"2026-06-29"},{"spend":254280.01,"imp":484535,"clicks":8600,"signups":971.6,"payers":15,"vbb_value":122365.44,"week":"2026-07-06"},{"spend":258683.46,"imp":427238,"clicks":8441,"signups":1032.2,"payers":13,"vbb_value":128964.5,"week":"2026-07-13"}],"Project":[{"spend":177061.66,"imp":430057,"clicks":13107,"signups":2164.6,"payers":31,"vbb_value":178690.59,"week":"2026-06-15"},{"spend":201891.66,"imp":500097,"clicks":13824,"signups":2180.6,"payers":19,"vbb_value":193512.06,"week":"2026-06-22"},{"spend":211682.36,"imp":520001,"clicks":16579,"signups":2484.2,"payers":29,"vbb_value":224700,"week":"2026-06-29"},{"spend":244908.33,"imp":559784,"clicks":20260,"signups":3054.4,"payers":24,"vbb_value":239579.07,"week":"2026-07-06"},{"spend":169365.23,"imp":397886,"clicks":17935,"signups":3124.5,"payers":25,"vbb_value":154755.79,"week":"2026-07-13"}],"Real Estate - Agents":[{"spend":0,"imp":0,"clicks":0,"signups":0,"payers":0,"vbb_value":0,"week":"2026-06-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"payers":0,"vbb_value":0,"week":"2026-06-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"payers":0,"vbb_value":0,"week":"2026-06-29"},{"spend":3135.38,"imp":4648,"clicks":205,"signups":11.5,"payers":0,"vbb_value":325.61,"week":"2026-07-06"},{"spend":6585.92,"imp":9424,"clicks":431,"signups":39.5,"payers":0,"vbb_value":1096.41,"week":"2026-07-13"}],"Task":[{"spend":57554.55,"imp":265230,"clicks":11785,"signups":2144.8,"payers":10,"vbb_value":112599.92,"week":"2026-06-15"},{"spend":79203.19,"imp":326481,"clicks":13102,"signups":2218.1,"payers":9,"vbb_value":110342.57,"week":"2026-06-22"},{"spend":68924.86,"imp":300986,"clicks":12479,"signups":2254.1,"payers":16,"vbb_value":121301.88,"week":"2026-06-29"},{"spend":76011.12,"imp":316508,"clicks":14241,"signups":2532.6,"payers":5,"vbb_value":144471.53,"week":"2026-07-06"},{"spend":83994.16,"imp":361128,"clicks":20172,"signups":3723.7,"payers":7,"vbb_value":109292.42,"week":"2026-07-13"}],"To Do":[{"spend":22679.89,"imp":54686,"clicks":2539,"signups":491.7,"payers":3,"vbb_value":38720.21,"week":"2026-06-15"},{"spend":40649.97,"imp":61159,"clicks":4648,"signups":688.9,"payers":6,"vbb_value":71045.82,"week":"2026-06-22"},{"spend":36236.04,"imp":72392,"clicks":3971,"signups":692,"payers":7,"vbb_value":67873.47,"week":"2026-06-29"},{"spend":35980.51,"imp":92247,"clicks":4532,"signups":936,"payers":4,"vbb_value":46731.44,"week":"2026-07-06"},{"spend":25777.04,"imp":75924,"clicks":4207,"signups":877.9,"payers":2,"vbb_value":51753.17,"week":"2026-07-13"}]};
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function weekLabel(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const end = new Date(d);
+    end.setDate(end.getDate() + 6);
+    const m = MONTHS[d.getMonth()];
+    return m + ' ' + d.getDate() + '–' + end.getDate();
+}
+
+function fmt(n, prefix) {
+    if (n == null || isNaN(n)) return '—';
+    const s = Math.abs(n) >= 1000
+        ? Math.round(n).toLocaleString('en-US')
+        : n % 1 === 0 ? n.toLocaleString('en-US') : n.toFixed(1);
+    return (prefix || '') + s;
+}
+
+function fmtMoney(n) {
+    if (n == null || isNaN(n)) return '—';
+    return '$' + Math.round(n).toLocaleString('en-US');
+}
+
+function fmtRoas(n) {
+    if (n == null || isNaN(n) || !isFinite(n)) return '—';
+    return n.toFixed(2);
+}
+
+function delta(cur, prev) {
+    if (!prev || prev === 0) return { pct: null, html: '<span class="neu">—</span>' };
+    const pct = ((cur - prev) / Math.abs(prev)) * 100;
+    return { pct };
+}
+
+function deltaHtml(pct, invert) {
+    if (pct == null) return '<span class="neu">—</span>';
+    const abs = Math.abs(pct).toFixed(1);
+    const isUp = pct > 0;
+    let cls;
+    if (invert) {
+        cls = isUp ? 'dn' : 'up';
+    } else {
+        cls = isUp ? 'up' : 'dn';
+    }
+    if (Math.abs(pct) < 0.05) return '<span class="neu">0.0%</span>';
+    const arrow = isUp ? '▲' : '▼';
+    return `<span class="${cls}">${arrow} ${abs}%</span>`;
+}
+
+function getRows(cluster) {
+    return DATA[cluster] || [];
+}
+
+function render(cluster) {
+    const rows = getRows(cluster);
+    if (!rows.length) return;
+
+    // KPI — last week vs prior
+    const last = rows[rows.length - 1];
+    const prev = rows.length > 1 ? rows[rows.length - 2] : null;
+
+    const lastRoas = last.spend > 0 ? last.vbb_value / last.spend : 0;
+    const prevRoas = prev && prev.spend > 0 ? prev.vbb_value / prev.spend : 0;
+
+    const kpis = [
+        { label: 'Spend', val: fmtMoney(last.spend), d: delta(last.spend, prev?.spend) },
+        { label: 'Impressions', val: fmt(last.imp), d: delta(last.imp, prev?.imp) },
+        { label: 'Hard Signups', val: fmt(last.signups), d: delta(last.signups, prev?.signups) },
+        { label: 'VBB ROAS', val: fmtRoas(lastRoas), d: delta(lastRoas, prevRoas) },
+    ];
+
+    document.getElementById('kpi-grid').innerHTML = kpis.map(k => {
+        const dHtml = k.d.pct != null ? deltaHtml(k.d.pct, false) : '<span class="neu">—</span>';
+        return `<div class="kpi-card">
+            <div class="kpi-label">${k.label}</div>
+            <div class="kpi-val">${k.val}</div>
+            <div class="kpi-delta">${dHtml} vs prior week</div>
+        </div>`;
+    }).join('');
+
+    // Table
+    let html = '';
+    rows.forEach((r, i) => {
+        const prev = i > 0 ? rows[i - 1] : null;
+        const roas = r.spend > 0 ? r.vbb_value / r.spend : 0;
+        const prevRoas = prev && prev.spend > 0 ? prev.vbb_value / prev.spend : 0;
+        const cps = r.signups > 0 ? r.spend / r.signups : 0;
+        const prevCps = prev && prev.signups > 0 ? prev.spend / prev.signups : 0;
+
+        const spendD = delta(r.spend, prev?.spend);
+        const impD = delta(r.imp, prev?.imp);
+        const suD = delta(r.signups, prev?.signups);
+        const roasD = delta(roas, prevRoas);
+        const cpsD = delta(cps, prevCps);
+
+        const altClass = i % 2 === 1 ? ' class="tr-alt"' : '';
+        html += `<tr${altClass}>
+            <td class="week-cell">${weekLabel(r.week)}</td>
+            <td class="right">${fmtMoney(r.spend)}</td>
+            <td class="right">${deltaHtml(spendD.pct, false)}</td>
+            <td class="right">${fmt(r.imp)}</td>
+            <td class="right">${deltaHtml(impD.pct, false)}</td>
+            <td class="right">${fmt(r.signups)}</td>
+            <td class="right">${deltaHtml(suD.pct, false)}</td>
+            <td class="right">${r.signups > 0 ? fmtMoney(cps) : '—'} ${i > 0 && r.signups > 0 && prevCps > 0 ? deltaHtml(cpsD.pct, true) : ''}</td>
+            <td class="right">${fmt(r.payers)}</td>
+            <td class="right">${r.spend > 0 ? fmtRoas(roas) : '—'}</td>
+            <td class="right">${deltaHtml(roasD.pct, false)}</td>
+        </tr>`;
+    });
+    document.getElementById('table-body').innerHTML = html;
+}
+
+// Init
+const select = document.getElementById('cluster-select');
+const keys = Object.keys(DATA).sort((a, b) => {
+    if (a === 'All') return -1;
+    if (b === 'All') return 1;
+    return a.localeCompare(b);
+});
+keys.forEach(k => {
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = k;
+    if (k === 'All') opt.selected = true;
+    select.appendChild(opt);
+});
+select.addEventListener('change', () => render(select.value));
+render('All');
+</script>
+</body>
+</html>
