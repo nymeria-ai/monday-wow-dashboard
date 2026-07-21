@@ -140,7 +140,53 @@ td {
     .kpi-grid { grid-template-columns: 1fr; }
     .filter-bar select { width: 100%; }
 }
+.chart-section {
+    background: var(--surface-0);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+}
+.chart-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+.chart-toggle {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-family: inherit;
+    padding: 5px 12px;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+.chart-toggle:hover {
+    border-color: #555;
+    color: var(--text);
+}
+.chart-toggle.active {
+    border-color: var(--green);
+    color: var(--green);
+    background: rgba(29, 158, 117, 0.12);
+}
+.chart-toggle .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+}
+#chart-canvas {
+    width: 100% !important;
+    max-height: 320px;
+}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -154,6 +200,11 @@ td {
 
 <div id="kpi-container" class="kpi-block">
     <div id="kpi-grid" class="kpi-grid"></div>
+</div>
+
+<div class="chart-section">
+    <div class="chart-toggles" id="chart-toggles"></div>
+    <canvas id="chart-canvas"></canvas>
 </div>
 
 <div class="table-wrap">
@@ -335,8 +386,142 @@ keys.forEach(k => {
     if (k === 'All') opt.selected = true;
     select.appendChild(opt);
 });
-select.addEventListener('change', () => render(select.value));
+// ── Chart setup ──
+const METRICS = [
+    { id: 'spend',   label: 'Spend',          type: 'bar',  color: '#6366f1', fmt: v => '$' + (v/1000).toFixed(0) + 'K', valueFn: r => r.spend },
+    { id: 'imp',     label: 'Impressions',     type: 'bar',  color: '#38bdf8', fmt: v => (v/1000).toFixed(0) + 'K',       valueFn: r => r.imp },
+    { id: 'cpc',     label: 'Avg CPC',         type: 'line', color: '#f59e0b', fmt: v => '$' + v.toFixed(2),              valueFn: r => r.clicks > 0 ? r.spend / r.clicks : 0 },
+    { id: 'signups', label: 'Hard Signups',     type: 'bar',  color: '#4ade80', fmt: v => v.toFixed(0),                    valueFn: r => r.signups },
+    { id: 'cr',      label: 'CR to SU',        type: 'line', color: '#a78bfa', fmt: v => (v*100).toFixed(1) + '%',        valueFn: r => r.clicks > 0 ? r.signups / r.clicks : 0 },
+    { id: 'cps',     label: 'CPS Hard Signup', type: 'line', color: '#f87171', fmt: v => '$' + v.toFixed(0),              valueFn: r => r.signups > 0 ? r.spend / r.signups : 0 },
+    { id: 'payers',  label: 'Payers',          type: 'line', color: '#2dd4bf', fmt: v => v.toFixed(0),                    valueFn: r => r.payers },
+    { id: 'roas',    label: 'VBB ROAS',        type: 'line', color: '#fb923c', fmt: v => v.toFixed(2),                    valueFn: r => r.spend > 0 ? r.vbb_value / r.spend : 0 },
+];
+
+const activeMetrics = new Set(['spend', 'cps']); // defaults
+let chartInstance = null;
+
+// Build toggle buttons
+const toggleContainer = document.getElementById('chart-toggles');
+METRICS.forEach(m => {
+    const btn = document.createElement('button');
+    btn.className = 'chart-toggle' + (activeMetrics.has(m.id) ? ' active' : '');
+    btn.dataset.id = m.id;
+    btn.innerHTML = `<span class="dot" style="background:${m.color}"></span>${m.label}`;
+    btn.addEventListener('click', () => {
+        if (activeMetrics.has(m.id)) {
+            activeMetrics.delete(m.id);
+            btn.classList.remove('active');
+        } else {
+            activeMetrics.add(m.id);
+            btn.classList.add('active');
+        }
+        renderChart(select.value);
+    });
+    toggleContainer.appendChild(btn);
+});
+
+function renderChart(cluster) {
+    const rows = getRows(cluster);
+    if (!rows.length) return;
+    const labels = rows.map(r => weekLabel(r.week));
+    const active = METRICS.filter(m => activeMetrics.has(m.id));
+
+    // Separate bar and line metrics for dual axes
+    const barMetrics = active.filter(m => m.type === 'bar');
+    const lineMetrics = active.filter(m => m.type === 'line');
+
+    const datasets = [];
+    const scales = {
+        x: {
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            ticks: { color: '#999', font: { size: 11 } },
+        }
+    };
+
+    // Each active metric gets its own y-axis to handle different scales
+    active.forEach((m, idx) => {
+        const axisId = 'y_' + m.id;
+        const data = rows.map(r => m.valueFn(r));
+        const isBar = m.type === 'bar';
+        const position = isBar ? 'left' : 'right';
+
+        datasets.push({
+            label: m.label,
+            data: data,
+            type: m.type,
+            yAxisID: axisId,
+            backgroundColor: isBar ? m.color + '99' : 'transparent',
+            borderColor: m.color,
+            borderWidth: isBar ? 0 : 2.5,
+            pointRadius: 3,
+            pointBackgroundColor: m.color,
+            tension: 0.3,
+            order: isBar ? 2 : 1, // lines render on top
+            barPercentage: barMetrics.length > 1 ? 0.5 : 0.6,
+            categoryPercentage: barMetrics.length > 1 ? 0.8 : 0.7,
+        });
+
+        scales[axisId] = {
+            type: 'linear',
+            position: position,
+            display: active.length <= 3, // hide axes when too many
+            grid: { display: idx === 0, color: 'rgba(255,255,255,0.04)' },
+            ticks: {
+                color: m.color,
+                font: { size: 10 },
+                callback: function(v) { return m.fmt(v); },
+                maxTicksLimit: 5,
+            },
+            beginAtZero: true,
+        };
+    });
+
+    if (chartInstance) chartInstance.destroy();
+
+    const ctx = document.getElementById('chart-canvas').getContext('2d');
+    chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1a1a1a',
+                    borderColor: '#333',
+                    borderWidth: 1,
+                    titleColor: '#e8e8e8',
+                    bodyColor: '#ccc',
+                    padding: 10,
+                    callbacks: {
+                        label: function(ctx) {
+                            const m = METRICS.find(x => x.label === ctx.dataset.label);
+                            return ctx.dataset.label + ': ' + (m ? m.fmt(ctx.raw) : ctx.raw);
+                        }
+                    }
+                }
+            },
+            scales: scales,
+        }
+    });
+
+    // Set canvas height
+    document.getElementById('chart-canvas').parentElement.style.height = '320px';
+    document.getElementById('chart-canvas').style.height = '320px';
+}
+
+select.addEventListener('change', () => {
+    render(select.value);
+    renderChart(select.value);
+});
 render('All');
+renderChart('All');
 </script>
 </body>
 </html>
