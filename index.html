@@ -375,7 +375,9 @@ td {
         <div class="select-actions">
             <button class="select-action" id="comp-select-all">Select all</button>
             <button class="select-action" id="comp-select-none">Clear</button>
-            <button class="select-action" id="comp-select-defaults">Defaults</button>
+            <button class="select-action" id="comp-select-generic">Generic</button>
+            <button class="select-action" id="comp-select-agents">Agentic Activity</button>
+            <button class="select-action" id="comp-select-geo">Geo Clusters</button>
         </div>
     </div>
 </div>
@@ -786,14 +788,23 @@ document.getElementById('comp-select-none').addEventListener('click', () => {
     ccContainer.querySelectorAll('.cc-pill').forEach(p => p.classList.remove('active'));
     renderComparison();
 });
-document.getElementById('comp-select-defaults').addEventListener('click', () => {
+
+const COMP_GENERIC = new Set(['Project', 'General', 'Task', 'Gantt', 'Marketing', 'Calendar', 'To Do', 'Logistics']);
+const COMP_AGENTS = new Set(COMP_CLUSTERS.filter(c => c.startsWith('Agent - ')));
+const COMP_GEO = new Set(['Brazil', 'Canada', 'DACH', 'France', 'LATAM']);
+
+function applyQuickSelect(preset) {
     compActiveClusters.clear();
-    COMP_DEFAULTS.forEach(c => compActiveClusters.add(c));
+    preset.forEach(c => compActiveClusters.add(c));
     ccContainer.querySelectorAll('.cc-pill').forEach(p => {
-        p.classList.toggle('active', COMP_DEFAULTS.has(p.dataset.cluster));
+        p.classList.toggle('active', preset.has(p.dataset.cluster));
     });
     renderComparison();
-});
+}
+
+document.getElementById('comp-select-generic').addEventListener('click', () => applyQuickSelect(COMP_GENERIC));
+document.getElementById('comp-select-agents').addEventListener('click', () => applyQuickSelect(COMP_AGENTS));
+document.getElementById('comp-select-geo').addEventListener('click', () => applyQuickSelect(COMP_GEO));
 
 function getCompWeeks() {
     const tf = TIMEFRAMES.find(t => t.id === compTimeframe);
