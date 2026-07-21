@@ -256,7 +256,7 @@ function fmtMoney(n) {
 
 function fmtRoas(n) {
     if (n == null || isNaN(n) || !isFinite(n)) return '—';
-    return n.toFixed(2);
+    return (n * 100).toFixed(0) + '%';
 }
 
 function delta(cur, prev) {
@@ -395,7 +395,7 @@ const METRICS = [
     { id: 'cr',      label: 'CR to SU',        type: 'line', color: '#a78bfa', fmt: v => (v*100).toFixed(1) + '%',        valueFn: r => r.clicks > 0 ? r.signups / r.clicks : 0 },
     { id: 'cps',     label: 'CPS Hard Signup', type: 'line', color: '#f87171', fmt: v => '$' + v.toFixed(0),              valueFn: r => r.signups > 0 ? r.spend / r.signups : 0 },
     { id: 'payers',  label: 'Payers',          type: 'line', color: '#2dd4bf', fmt: v => v.toFixed(0),                    valueFn: r => r.payers },
-    { id: 'roas',    label: 'VBB ROAS',        type: 'line', color: '#fb923c', fmt: v => v.toFixed(2),                    valueFn: r => r.spend > 0 ? r.vbb_value / r.spend : 0 },
+    { id: 'roas',    label: 'VBB ROAS',        type: 'line', color: '#fb923c', fmt: v => (v * 100).toFixed(0) + '%',       valueFn: r => r.spend > 0 ? r.vbb_value / r.spend : 0 },
 ];
 
 const activeMetrics = new Set(['spend', 'cps']); // defaults
