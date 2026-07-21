@@ -185,6 +185,120 @@ td {
     width: 100% !important;
     max-height: 320px;
 }
+
+/* ── Cluster Comparison Section ── */
+.section-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 40px 0 32px;
+}
+.comp-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+.comp-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+}
+.comp-subtitle {
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-bottom: 16px;
+}
+.comp-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+.comp-control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.comp-control-group .ctrl-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-secondary);
+}
+.comp-timeframe {
+    display: flex;
+    gap: 4px;
+}
+.tf-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-family: inherit;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.tf-btn:hover { border-color: #555; color: var(--text); }
+.tf-btn.active {
+    border-color: var(--green);
+    color: var(--green);
+    background: rgba(29, 158, 117, 0.12);
+}
+.comp-clusters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+.cc-pill {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-family: inherit;
+    padding: 4px 10px;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+.cc-pill:hover { border-color: #555; color: var(--text); }
+.cc-pill.active {
+    border-color: #6366f1;
+    color: #a5b4fc;
+    background: rgba(99, 102, 241, 0.12);
+}
+.comp-table-wrap {
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    overflow-x: auto;
+}
+.comp-table-wrap table th {
+    background: var(--surface-0);
+}
+.comp-table-wrap td.cluster-name {
+    font-weight: 500;
+    color: var(--text);
+    min-width: 140px;
+}
+.select-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 2px;
+}
+.select-action {
+    background: none;
+    border: none;
+    color: var(--green);
+    font-size: 10px;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.select-action:hover { color: #4ade80; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
@@ -225,6 +339,48 @@ td {
             </tr>
         </thead>
         <tbody id="table-body"></tbody>
+    </table>
+</div>
+
+<hr class="section-divider">
+
+<div class="comp-header">
+    <h2>🔍 Cluster Comparison</h2>
+</div>
+<p class="comp-subtitle">Aggregated metrics across selected clusters for a chosen timeframe</p>
+
+<div class="comp-controls">
+    <div class="comp-control-group">
+        <span class="ctrl-label">Timeframe</span>
+        <div class="comp-timeframe" id="comp-timeframe"></div>
+    </div>
+    <div class="comp-control-group" style="flex:1;min-width:300px">
+        <span class="ctrl-label">Clusters</span>
+        <div class="comp-clusters" id="comp-clusters"></div>
+        <div class="select-actions">
+            <button class="select-action" id="comp-select-all">Select all</button>
+            <button class="select-action" id="comp-select-none">Clear</button>
+            <button class="select-action" id="comp-select-defaults">Defaults</button>
+        </div>
+    </div>
+</div>
+
+<div class="comp-table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Cluster</th>
+                <th class="right">Spend</th>
+                <th class="right">Impressions</th>
+                <th class="right">Avg CPC</th>
+                <th class="right">Hard Signups</th>
+                <th class="right">CR to SU</th>
+                <th class="right">CPS</th>
+                <th class="right">Payers</th>
+                <th class="right">VBB ROAS</th>
+            </tr>
+        </thead>
+        <tbody id="comp-table-body"></tbody>
     </table>
 </div>
 
@@ -522,6 +678,167 @@ select.addEventListener('change', () => {
 });
 render('All');
 renderChart('All');
+
+// ══════════════════════════════════════════
+// Cluster Comparison — fully independent
+// ══════════════════════════════════════════
+
+const COMP_EXCLUDE = new Set(['All', 'All exc. Brand', 'Other']);
+const COMP_CLUSTERS = Object.keys(DATA).filter(k => !COMP_EXCLUDE.has(k)).sort();
+const COMP_DEFAULTS = new Set(['Project', 'General', 'Task', 'Gantt', 'Marketing', 'Calendar', 'To Do', 'Logistics']);
+
+// Derive all available weeks sorted
+const ALL_WEEKS = [...new Set(Object.values(DATA).flatMap(rows => rows.map(r => r.week)))].sort();
+
+const TIMEFRAMES = [
+    { id: '1w', label: 'Last week', weeks: 1 },
+    { id: '2w', label: 'Last 2 weeks', weeks: 2 },
+    { id: '4w', label: 'Last 4 weeks', weeks: 4 },
+    { id: 'all', label: 'All time', weeks: ALL_WEEKS.length },
+];
+
+let compTimeframe = '2w';
+const compActiveClusters = new Set(COMP_DEFAULTS);
+
+// Build timeframe buttons
+const tfContainer = document.getElementById('comp-timeframe');
+TIMEFRAMES.forEach(tf => {
+    const btn = document.createElement('button');
+    btn.className = 'tf-btn' + (tf.id === compTimeframe ? ' active' : '');
+    btn.textContent = tf.label;
+    btn.dataset.id = tf.id;
+    btn.addEventListener('click', () => {
+        compTimeframe = tf.id;
+        tfContainer.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderComparison();
+    });
+    tfContainer.appendChild(btn);
+});
+
+// Build cluster pills
+const ccContainer = document.getElementById('comp-clusters');
+COMP_CLUSTERS.forEach(c => {
+    const pill = document.createElement('button');
+    pill.className = 'cc-pill' + (compActiveClusters.has(c) ? ' active' : '');
+    pill.textContent = c;
+    pill.dataset.cluster = c;
+    pill.addEventListener('click', () => {
+        if (compActiveClusters.has(c)) {
+            compActiveClusters.delete(c);
+            pill.classList.remove('active');
+        } else {
+            compActiveClusters.add(c);
+            pill.classList.add('active');
+        }
+        renderComparison();
+    });
+    ccContainer.appendChild(pill);
+});
+
+// Select all / clear / defaults
+document.getElementById('comp-select-all').addEventListener('click', () => {
+    COMP_CLUSTERS.forEach(c => compActiveClusters.add(c));
+    ccContainer.querySelectorAll('.cc-pill').forEach(p => p.classList.add('active'));
+    renderComparison();
+});
+document.getElementById('comp-select-none').addEventListener('click', () => {
+    compActiveClusters.clear();
+    ccContainer.querySelectorAll('.cc-pill').forEach(p => p.classList.remove('active'));
+    renderComparison();
+});
+document.getElementById('comp-select-defaults').addEventListener('click', () => {
+    compActiveClusters.clear();
+    COMP_DEFAULTS.forEach(c => compActiveClusters.add(c));
+    ccContainer.querySelectorAll('.cc-pill').forEach(p => {
+        p.classList.toggle('active', COMP_DEFAULTS.has(p.dataset.cluster));
+    });
+    renderComparison();
+});
+
+function getCompWeeks() {
+    const tf = TIMEFRAMES.find(t => t.id === compTimeframe);
+    const n = tf ? tf.weeks : 2;
+    return ALL_WEEKS.slice(-n);
+}
+
+function aggregateCluster(cluster, weeks) {
+    const weekSet = new Set(weeks);
+    const rows = (DATA[cluster] || []).filter(r => weekSet.has(r.week));
+    const agg = { spend: 0, imp: 0, clicks: 0, signups: 0, payers: 0, vbb_value: 0 };
+    rows.forEach(r => {
+        agg.spend += r.spend;
+        agg.imp += r.imp;
+        agg.clicks += r.clicks;
+        agg.signups += r.signups;
+        agg.payers += r.payers;
+        agg.vbb_value += r.vbb_value;
+    });
+    return agg;
+}
+
+function renderComparison() {
+    const weeks = getCompWeeks();
+    const clusters = COMP_CLUSTERS.filter(c => compActiveClusters.has(c));
+
+    if (!clusters.length) {
+        document.getElementById('comp-table-body').innerHTML = '<tr><td colspan="9" style="text-align:center;color:#666;padding:24px">Select at least one cluster</td></tr>';
+        return;
+    }
+
+    let html = '';
+    clusters.forEach((c, i) => {
+        const a = aggregateCluster(c, weeks);
+        const cpc = a.clicks > 0 ? a.spend / a.clicks : 0;
+        const cr = a.clicks > 0 ? (a.signups / a.clicks) * 100 : 0;
+        const cps = a.signups > 0 ? a.spend / a.signups : 0;
+        const roas = a.spend > 0 ? (a.vbb_value / a.spend) * 100 : 0;
+
+        html += `<tr class="${i % 2 ? 'tr-alt' : ''}">
+            <td class="cluster-name">${c}</td>
+            <td class="right">${fmtMoney(a.spend)}</td>
+            <td class="right">${fmt(a.imp)}</td>
+            <td class="right">$${cpc.toFixed(2)}</td>
+            <td class="right">${fmt(a.signups)}</td>
+            <td class="right">${cr.toFixed(1)}%</td>
+            <td class="right">$${cps.toFixed(0)}</td>
+            <td class="right">${a.payers.toFixed(0)}</td>
+            <td class="right">${roas.toFixed(0)}%</td>
+        </tr>`;
+    });
+
+    // Totals row
+    const totals = { spend: 0, imp: 0, clicks: 0, signups: 0, payers: 0, vbb_value: 0 };
+    clusters.forEach(c => {
+        const a = aggregateCluster(c, weeks);
+        totals.spend += a.spend;
+        totals.imp += a.imp;
+        totals.clicks += a.clicks;
+        totals.signups += a.signups;
+        totals.payers += a.payers;
+        totals.vbb_value += a.vbb_value;
+    });
+    const tCpc = totals.clicks > 0 ? totals.spend / totals.clicks : 0;
+    const tCr = totals.clicks > 0 ? (totals.signups / totals.clicks) * 100 : 0;
+    const tCps = totals.signups > 0 ? totals.spend / totals.signups : 0;
+    const tRoas = totals.spend > 0 ? (totals.vbb_value / totals.spend) * 100 : 0;
+
+    html += `<tr style="border-top:2px solid var(--border);font-weight:600">
+        <td class="cluster-name">Total</td>
+        <td class="right">${fmtMoney(totals.spend)}</td>
+        <td class="right">${fmt(totals.imp)}</td>
+        <td class="right">$${tCpc.toFixed(2)}</td>
+        <td class="right">${fmt(totals.signups)}</td>
+        <td class="right">${tCr.toFixed(1)}%</td>
+        <td class="right">$${tCps.toFixed(0)}</td>
+        <td class="right">${totals.payers.toFixed(0)}</td>
+        <td class="right">${tRoas.toFixed(0)}%</td>
+    </tr>`;
+
+    document.getElementById('comp-table-body').innerHTML = html;
+}
+
+renderComparison();
 </script>
 </body>
 </html>
