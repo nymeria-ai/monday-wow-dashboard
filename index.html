@@ -348,6 +348,7 @@ td {
                 <th class="right">Signups</th>
                 <th class="right">Δ</th>
                 <th class="right">CPS</th>
+                <th class="right">Δ</th>
                 <th class="right">Payers</th>
                 <th class="right">VBB ROAS</th>
                 <th class="right">Δ</th>
@@ -508,7 +509,8 @@ function render(cluster) {
             <td class="right">${deltaHtml(impD.pct, false)}</td>
             <td class="right">${fmt(r.signups)}</td>
             <td class="right">${deltaHtml(suD.pct, false)}</td>
-            <td class="right">${r.signups > 0 ? fmtMoney(cps) : '—'} ${i > 0 && r.signups > 0 && prevCps > 0 ? deltaHtml(cpsD.pct, true) : ''}</td>
+            <td class="right">${r.signups > 0 ? fmtMoney(cps) : '—'}</td>
+            <td class="right">${i > 0 && r.signups > 0 && prevCps > 0 ? deltaHtml(cpsD.pct, true) : ''}</td>
             <td class="right">${fmt(r.payers)}</td>
             <td class="right">${r.spend > 0 ? fmtRoas(roas) : '—'}</td>
             <td class="right">${deltaHtml(roasD.pct, false)}</td>
