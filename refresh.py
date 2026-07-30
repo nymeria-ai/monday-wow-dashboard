@@ -4,6 +4,17 @@ WoW Dashboard Refresh Script
 Pulls data from all 5 Google Ads accounts via Funnel Gate,
 maps campaigns to clusters, aggregates by ISO week,
 and updates the DATA constant in index.html.
+
+╔══════════════════════════════════════════════════════════════════╗
+║  LOCKED METRIC DEFINITIONS — DO NOT CHANGE WITHOUT TAL'S OK    ║
+║                                                                 ║
+║  Hard Signups = "Hard Signup (MCC)" ctID 402542787              ║
+║  Payers       = "Paying (MCC)"      ctID 241978033              ║
+║  VBB ROAS     = value of "VBB - HT prod - offline conversions"  ║
+║                                                                 ║
+║  All three use metrics.all_conversions (secondary actions).      ║
+║  Verified by Tal Herman on 2026-07-30.                          ║
+╚══════════════════════════════════════════════════════════════════╝
 """
 import json
 import subprocess
