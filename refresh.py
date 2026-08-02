@@ -133,31 +133,39 @@ CLUSTER_MAP = {
     "agent_aigeneric": "Agent - Generic",
     "agent_aicomp": "Agent - Comp",
     # Other / misc
-    "workflow": "Other",
-    "kanban": "Other",
-    "dashboards": "Other",
+    "workflow": "General",
+    "kanban": "Competitors",
+    "dashboards": "General",
     "schedule": "Other",
     "planner": "Other",
     "team": "Other",
     "tracker": "Other",
     "templates": "Other",
     "all_categories": "Other",
-    "construction_management": "Other",
-    "construction_gmao": "Other",
+    "construction_management": "Logistics",
+    "construction_gmao": "Logistics",
+    "schedule": "Calendar",
+    "task_free": "Task",
+    "kanban": "Competitors",
+    "email_marketing": "Marketing",
     # Tech
     "tech": "Tech",
 }
-
-# CRM patterns to exclude
-CRM_PATTERNS = ["crm", "brand_crm", "crm_main", "crm_ai", "crm_industries",
-                 "comp_crm", "comp_crm_hubspot", "lead_management"]
-
 
 def extract_cluster(campaign_name: str, account_id: str) -> str | None:
     """Extract dashboard cluster from campaign name. Returns None to skip."""
     # Clean: remove trailing suffixes after space (e.g. "VBB test1 - Calendar US H")
     base_name = campaign_name.split(" ")[0] if " " in campaign_name else campaign_name
     parts = base_name.split("-")
+    parts_lower = [p.lower() for p in parts]
+
+    # ── CRM exclusion — FIRST, before any cluster logic ──
+    # Exclude if ANY part of the campaign name contains "crm"
+    if any("crm" in p for p in parts_lower):
+        return None
+    # Also exclude known CRM-adjacent clusters
+    if any(p in ("lead_management", "account_management", "lead_agent") for p in parts_lower):
+        return None
 
     if len(parts) < 3:
         return "Other"
@@ -183,8 +191,8 @@ def extract_cluster(campaign_name: str, account_id: str) -> str | None:
         # Unknown format
         return "Other"
 
-    # Exclude CRM campaigns
-    if any(crm in cluster_val for crm in ["crm"]):
+    # Double-check CRM in cluster value (safety net)
+    if "crm" in cluster_val:
         return None
 
     # Special: AI Max campaigns

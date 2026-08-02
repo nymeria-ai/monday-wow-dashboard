@@ -359,10 +359,10 @@ td {
                 <th class="right">Δ</th>
                 <th class="right">CPS</th>
                 <th class="right">Δ</th>
-                <th class="right">Payers</th>
                 <th class="right">Agents Created</th>
                 <th class="right">CPAC</th>
                 <th class="right">Δ</th>
+                <th class="right">Payers</th>
                 <th class="right">CAC</th>
                 <th class="right">VBB ROAS</th>
                 <th class="right">Δ</th>
@@ -408,9 +408,9 @@ td {
                 <th class="right sortable" data-sort="signups">Hard Signups</th>
                 <th class="right sortable" data-sort="cr">CR to SU</th>
                 <th class="right sortable" data-sort="cps">CPS</th>
-                <th class="right sortable" data-sort="payers">Payers</th>
                 <th class="right sortable" data-sort="agents_created">Agents Created</th>
                 <th class="right sortable" data-sort="cpac">CPAC</th>
+                <th class="right sortable" data-sort="payers">Payers</th>
                 <th class="right sortable" data-sort="cac">CAC</th>
                 <th class="right sortable" data-sort="roas">VBB ROAS</th>
             </tr>
@@ -546,10 +546,10 @@ function render(cluster) {
             <td class="right">${deltaHtml(suD.pct, false)}</td>
             <td class="right">${r.signups > 0 ? fmtMoney(cps) : '—'}</td>
             <td class="right">${i > 0 && r.signups > 0 && prevCps > 0 ? deltaHtml(cpsD.pct, true) : ''}</td>
-            <td class="right">${fmt(r.payers)}</td>
             <td class="right">${fmt(ac)}</td>
             <td class="right">${ac > 0 ? fmtMoney(cpac) : '—'}</td>
             <td class="right">${i > 0 && ac > 0 && prevCpac > 0 ? deltaHtml(cpacD.pct, true) : ''}</td>
+            <td class="right">${fmt(r.payers)}</td>
             <td class="right">${r.payers > 0 ? fmtMoney(cac) : '—'}</td>
             <td class="right">${r.spend > 0 ? fmtRoas(roas) : '—'}</td>
             <td class="right">${deltaHtml(roasD.pct, false)}</td>
@@ -947,9 +947,9 @@ function renderComparison() {
             <td class="right">${fmt(a.signups)}</td>
             <td class="right">${cr.toFixed(1)}%</td>
             <td class="right">$${cps.toFixed(0)}</td>
-            <td class="right">${a.payers.toFixed(0)}</td>
             <td class="right">${fmt(a.agents_created)}</td>
             <td class="right">${a.agents_created > 0 ? fmtMoney(cpac) : '—'}</td>
+            <td class="right">${a.payers.toFixed(0)}</td>
             <td class="right">${a.payers > 0 ? fmtMoney(cac) : '—'}</td>
             <td class="right">${roas.toFixed(0)}%</td>
         </tr>`;
@@ -982,9 +982,9 @@ function renderComparison() {
         <td class="right">${fmt(totals.signups)}</td>
         <td class="right">${tCr.toFixed(1)}%</td>
         <td class="right">$${tCps.toFixed(0)}</td>
-        <td class="right">${totals.payers.toFixed(0)}</td>
         <td class="right">${fmt(totals.agents_created)}</td>
         <td class="right">${totals.agents_created > 0 ? fmtMoney(tCpac) : '—'}</td>
+        <td class="right">${totals.payers.toFixed(0)}</td>
         <td class="right">${totals.payers > 0 ? fmtMoney(tCac) : '—'}</td>
         <td class="right">${tRoas.toFixed(0)}%</td>
     </tr>`;
