@@ -38,7 +38,7 @@ ACCOUNTS = {
 }
 
 # Start date for historical data (first week in dashboard)
-START_DATE = "2026-06-09"  # Monday of the first dashboard week (week of Jun 15 starts Mon Jun 9... actually Jun 15 is a Sunday)
+START_DATE = "2026-06-01"  # Pull data from June 1st
 
 # Conversion action names — LOCKED definitions (do NOT change without Tal's approval)
 # Hard Signups = "Hard Signup (MCC)" ONLY
@@ -162,6 +162,10 @@ def extract_cluster(campaign_name: str, account_id: str) -> str | None:
     if len(parts) < 3:
         return "Other"
 
+    # EU1 detection — check early before geo/cluster mapping
+    if any(p.lower() == "eu1" for p in parts):
+        return "EU"
+
     region = parts[0].lower()
 
     # Brand account → always Brand
@@ -205,11 +209,13 @@ def extract_cluster(campaign_name: str, account_id: str) -> str | None:
     return "Other"
 
 
-def iso_week_monday(date_str: str) -> str:
-    """Convert YYYY-MM-DD to the Monday of its ISO week (YYYY-MM-DD)."""
+def week_start_friday(date_str: str) -> str:
+    """Convert YYYY-MM-DD to the Friday that starts its Fri-Thu week."""
     d = datetime.strptime(date_str, "%Y-%m-%d")
-    monday = d - timedelta(days=d.weekday())
-    return monday.strftime("%Y-%m-%d")
+    # weekday(): Mon=0 … Fri=4 … Sun=6
+    # offset from Friday: (weekday - 4) % 7  →  Fri=0, Sat=1, …, Thu=6
+    friday = d - timedelta(days=(d.weekday() - 4) % 7)
+    return friday.strftime("%Y-%m-%d")
 
 
 def run_gaql(customer_id: str, query: str) -> list:
@@ -247,9 +253,9 @@ def pull_data():
 
     print(f"Pulling data from {START_DATE} to {end_date}")
 
-    # Structure: {cluster: {week: {spend, imp, clicks, signups, payers, vbb_value}}}
+    # Structure: {cluster: {week: {spend, imp, clicks, signups, payers, vbb_value, agents_created}}}
     cluster_data = defaultdict(lambda: defaultdict(lambda: {
-        "spend": 0, "imp": 0, "clicks": 0, "signups": 0, "payers": 0, "vbb_value": 0
+        "spend": 0, "imp": 0, "clicks": 0, "signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0
     }))
 
     for acct_id, acct_name in ACCOUNTS.items():
@@ -282,6 +288,18 @@ def pull_data():
         conv_rows = run_gaql(acct_id, conv_query)
         print(f"  Got {len(conv_rows)} conversion rows")
 
+        # Query 3: Agents Created conversion action
+        agents_query = (
+            f"SELECT campaign.name, segments.date, segments.conversion_action, metrics.all_conversions "
+            f"FROM campaign "
+            f"WHERE segments.date BETWEEN '{START_DATE}' AND '{end_date}' "
+            f"AND campaign.advertising_channel_type = 'SEARCH' "
+            f"AND segments.conversion_action = 'customers/{acct_id}/conversionActions/7638407984'"
+        )
+        print(f"  Pulling agents_created metrics...")
+        agents_rows = run_gaql(acct_id, agents_query)
+        print(f"  Got {len(agents_rows)} agents_created rows")
+
         # Process performance rows
         for row in perf_rows:
             camp_name = row.get("campaign", {}).get("name", "")
@@ -292,7 +310,7 @@ def pull_data():
             if cluster is None:
                 continue  # Skip CRM
 
-            week = iso_week_monday(date)
+            week = week_start_friday(date)
             cost = float(metrics.get("costMicros", 0)) / 1_000_000
             imps = int(metrics.get("impressions", 0))
             clicks = int(metrics.get("clicks", 0))
@@ -312,7 +330,7 @@ def pull_data():
             if cluster is None:
                 continue
 
-            week = iso_week_monday(date)
+            week = week_start_friday(date)
             conversions = float(metrics.get("allConversions", 0))
             conv_value = float(metrics.get("allConversionsValue", 0))
 
@@ -322,6 +340,20 @@ def pull_data():
                 cluster_data[cluster][week]["payers"] += conversions
             elif conv_name == VBB_ACTION:
                 cluster_data[cluster][week]["vbb_value"] += conv_value
+
+        # Process agents_created rows
+        for row in agents_rows:
+            camp_name = row.get("campaign", {}).get("name", "")
+            date = row.get("segments", {}).get("date", "")
+            metrics = row.get("metrics", {})
+
+            cluster = extract_cluster(camp_name, acct_id)
+            if cluster is None:
+                continue
+
+            week = week_start_friday(date)
+            conversions = float(metrics.get("allConversions", 0))
+            cluster_data[cluster][week]["agents_created"] += conversions
 
     return cluster_data
 
@@ -334,7 +366,7 @@ def compute_aggregates(cluster_data: dict) -> dict:
 
     # All cluster
     for week in sorted(all_weeks):
-        totals = {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "payers": 0, "vbb_value": 0}
+        totals = {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0}
         for cluster_name, weeks in cluster_data.items():
             if cluster_name in ("All", "All exc. Brand"):
                 continue
@@ -362,7 +394,7 @@ def format_data_for_html(cluster_data: dict) -> str:
         weeks_data = cluster_data[cluster_name]
         rows = []
         for week in sorted_weeks:
-            d = weeks_data.get(week, {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "payers": 0, "vbb_value": 0})
+            d = weeks_data.get(week, {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0})
             rows.append({
                 "spend": round(d["spend"], 2),
                 "imp": d["imp"],
@@ -370,6 +402,7 @@ def format_data_for_html(cluster_data: dict) -> str:
                 "signups": round(d["signups"], 1),
                 "payers": int(round(d["payers"])),
                 "vbb_value": round(d["vbb_value"], 2),
+                "agents_created": round(d["agents_created"], 1),
                 "week": week,
             })
         output[cluster_name] = rows

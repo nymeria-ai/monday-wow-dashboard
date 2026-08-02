@@ -361,8 +361,8 @@ td {
                 <th class="right">Δ</th>
                 <th class="right">Payers</th>
                 <th class="right">Agents Created</th>
-                <th class="right">Δ</th>
                 <th class="right">CPAC</th>
+                <th class="right">Δ</th>
                 <th class="right">CAC</th>
                 <th class="right">VBB ROAS</th>
                 <th class="right">Δ</th>
@@ -533,7 +533,7 @@ function render(cluster) {
         const suD = delta(r.signups, prev?.signups);
         const roasD = delta(roas, prevRoas);
         const cpsD = delta(cps, prevCps);
-        const acD = delta(ac, prevAc);
+        const cpacD = delta(cpac, prevCpac);
 
         const altClass = i % 2 === 1 ? ' class="tr-alt"' : '';
         html += `<tr${altClass}>
@@ -548,8 +548,8 @@ function render(cluster) {
             <td class="right">${i > 0 && r.signups > 0 && prevCps > 0 ? deltaHtml(cpsD.pct, true) : ''}</td>
             <td class="right">${fmt(r.payers)}</td>
             <td class="right">${fmt(ac)}</td>
-            <td class="right">${deltaHtml(acD.pct, false)}</td>
             <td class="right">${ac > 0 ? fmtMoney(cpac) : '—'}</td>
+            <td class="right">${i > 0 && ac > 0 && prevCpac > 0 ? deltaHtml(cpacD.pct, true) : ''}</td>
             <td class="right">${r.payers > 0 ? fmtMoney(cac) : '—'}</td>
             <td class="right">${r.spend > 0 ? fmtRoas(roas) : '—'}</td>
             <td class="right">${deltaHtml(roasD.pct, false)}</td>
