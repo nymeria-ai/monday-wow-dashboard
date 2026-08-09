@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WM% WoW — Cluster Breakdown</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f0f0f; color: #e8e8e8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 24px; }
+h1 { font-size: 20px; margin-bottom: 4px; }
+.subtitle { color: #999; font-size: 13px; margin-bottom: 24px; }
+.chart-container { position: relative; max-width: 1000px; margin: 0 auto; }
+.chart-box { background: #1a1a1a; border-radius: 12px; padding: 20px; margin-bottom: 24px; border: 1px solid #333; }
+.chart-title { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+.highlight { color: #eda100; }
+.insight-box { background: #1a1a1a; border-radius: 12px; padding: 20px; border: 1px solid #333; margin-bottom: 24px; }
+.insight-box h3 { font-size: 14px; margin-bottom: 12px; color: #eda100; }
+.insight-box ul { list-style: none; padding: 0; }
+.insight-box li { padding: 4px 0; font-size: 13px; color: #ccc; }
+.insight-box li .down { color: #D85A30; }
+.insight-box li .up { color: #1D9E75; }
+.legend-note { font-size: 11px; color: #666; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<div class="chart-container">
+  <h1>Work Management % — WoW Trend <span class="highlight">by Cluster</span></h1>
+  <div class="subtitle">Search (excl. CRM) · Fri–Thu weeks · Source: Google Ads via Funnel Gate</div>
+
+  <div class="chart-box">
+    <div class="chart-title">WM% of Total Signups (stacked area = cluster contribution)</div>
+    <canvas id="stackedChart" height="110"></canvas>
+    <div class="legend-note">Each color band = cluster's share of total signups. Top of stack = total WM%.</div>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title">WM% Total Trend (line)</div>
+    <canvas id="lineChart" height="60"></canvas>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title">Per-Cluster Signups — WoW Absolute Change</div>
+    <canvas id="wowChart" height="100"></canvas>
+  </div>
+
+  <div class="insight-box">
+    <h3>📊 Key Insights</h3>
+    <ul>
+      <li>WM% peaked at <strong>33.2%</strong> (week of Jul 10) → declined 3 consecutive weeks to <strong>29.3%</strong></li>
+      <li>Biggest drags: <span class="down">▼ Project (−21.6%)</span>, <span class="down">▼ Task (−36.2% from peak)</span>, <span class="down">▼ Gantt (−29.5% from peak)</span></li>
+      <li>Growing within WM: <span class="up">▲ Calendar (+75.9%)</span>, <span class="up">▲ Marketing (+72.2%)</span></li>
+      <li>WM absolute signups stable (~7.3K) — the % drop is because non-WM (Brand, Geo, Agents) grew faster</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const weeks = ["May 29","Jun 5","Jun 12","Jun 19","Jun 26","Jul 3","Jul 10","Jul 17","Jul 24","Jul 31"];
+const allSignups = [19266,25125,21883,20842,20981,22064,24202,25822,25137,24814];
+const wmPct = [27.5,27.1,26.8,28.3,29.1,31.8,33.2,31.6,29.4,29.3];
+
+const clusters = {
+  "Project":    [1004.4,1341.5,1310.8,1396.3,1789.5,2694.0,2400.0,2202.1,2019.6,2113.4],
+  "Calendar":   [1050.2,1271.9,1107.1,940.2,926.5,859.3,1374.5,1707.5,1683.8,1511.6],
+  "Task":       [505.8,610.9,528.3,777.7,813.6,980.2,1334.1,1464.8,1100.9,850.8],
+  "Gantt":      [909.5,1204.3,1035.5,962.7,835.7,788.2,1134.8,1015.9,906.5,800.1],
+  "Marketing":  [658.5,868.1,747.7,693.7,579.6,494.0,477.5,526.8,523.7,850.5],
+  "To Do":      [375.0,525.9,412.2,628.3,695.8,761.3,818.9,719.4,685.8,686.7],
+  "General":    [646.0,786.5,567.1,331.4,317.1,264.9,281.3,331.7,279.5,281.7],
+  "Logistics":  [141.3,211.7,163.3,163.1,146.2,168.4,219.1,188.5,184.4,164.8]
+};
+
+// Convert to % of total signups
+const clusterPct = {};
+for (const [name, vals] of Object.entries(clusters)) {
+  clusterPct[name] = vals.map((v, i) => +(v / allSignups[i] * 100).toFixed(2));
+}
+
+const colors = {
+  "Project":   "#6C5CE7",
+  "Calendar":  "#00B894",
+  "Task":      "#0984E3",
+  "Gantt":     "#FDCB6E",
+  "Marketing": "#E17055",
+  "To Do":     "#74B9FF",
+  "General":   "#A29BFE",
+  "Logistics": "#636E72"
+};
+
+Chart.defaults.color = '#999';
+Chart.defaults.borderColor = '#333';
+Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+
+// Stacked area chart
+new Chart(document.getElementById('stackedChart'), {
+  type: 'line',
+  data: {
+    labels: weeks,
+    datasets: Object.entries(clusterPct).map(([name, vals]) => ({
+      label: name,
+      data: vals,
+      backgroundColor: colors[name] + '99',
+      borderColor: colors[name],
+      borderWidth: 1.5,
+      fill: true,
+      tension: 0.3,
+      pointRadius: 3,
+      pointHoverRadius: 5
+    }))
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 12, padding: 16, font: { size: 11 } } },
+      tooltip: {
+        mode: 'index',
+        callbacks: {
+          label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%`,
+          footer: items => {
+            const total = items.reduce((s, i) => s + i.parsed.y, 0);
+            return `Total WM%: ${total.toFixed(1)}%`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: { grid: { display: false } },
+      y: { stacked: true, ticks: { callback: v => v + '%' }, title: { display: true, text: '% of Total Signups' } }
+    },
+    interaction: { mode: 'index', intersect: false }
+  }
+});
+
+// WM% line chart
+new Chart(document.getElementById('lineChart'), {
+  type: 'line',
+  data: {
+    labels: weeks,
+    datasets: [{
+      label: 'WM%',
+      data: wmPct,
+      borderColor: '#eda100',
+      backgroundColor: '#eda10033',
+      borderWidth: 2.5,
+      fill: true,
+      tension: 0.3,
+      pointRadius: 5,
+      pointBackgroundColor: wmPct.map((v, i) => i > 0 && v < wmPct[i-1] ? '#D85A30' : '#1D9E75'),
+      pointBorderColor: wmPct.map((v, i) => i > 0 && v < wmPct[i-1] ? '#D85A30' : '#1D9E75'),
+      pointBorderWidth: 2
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => `WM%: ${ctx.parsed.y}%` } }
+    },
+    scales: {
+      x: { grid: { display: false } },
+      y: { min: 24, max: 36, ticks: { callback: v => v + '%' } }
+    }
+  }
+});
+
+// WoW change bar chart
+const wowData = {};
+for (const [name, vals] of Object.entries(clusters)) {
+  wowData[name] = vals.map((v, i) => i === 0 ? 0 : Math.round(v - vals[i-1]));
+}
+
+new Chart(document.getElementById('wowChart'), {
+  type: 'bar',
+  data: {
+    labels: weeks.slice(1),
+    datasets: Object.entries(wowData).map(([name, vals]) => ({
+      label: name,
+      data: vals.slice(1),
+      backgroundColor: colors[name] + 'CC',
+      borderColor: colors[name],
+      borderWidth: 1
+    }))
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 12, padding: 16, font: { size: 11 } } },
+      tooltip: { mode: 'index' }
+    },
+    scales: {
+      x: { stacked: true, grid: { display: false } },
+      y: { stacked: true, title: { display: true, text: 'Signups Δ WoW' } }
+    },
+    interaction: { mode: 'index', intersect: false }
+  }
+});
+</script>
+</body>
+</html>
