@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Geo WoW Report — US / GB / AU</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f0f0f; color: #e8e8e8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; padding: 24px; max-width: 1100px; margin: 0 auto; }
+h1 { font-size: 20px; margin-bottom: 4px; }
+.subtitle { color: #999; font-size: 12px; margin-bottom: 24px; }
+.geo-section { margin-bottom: 32px; }
+.geo-header { font-size: 16px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.geo-flag { font-size: 20px; }
+table { width: 100%; border-collapse: collapse; background: #1a1a1a; border-radius: 10px; overflow: hidden; margin-bottom: 8px; }
+thead th { background: #222; padding: 10px 12px; text-align: right; font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #333; }
+thead th:first-child { text-align: left; }
+tbody td { padding: 10px 12px; text-align: right; border-bottom: 1px solid #272727; }
+tbody td:first-child { text-align: left; color: #ccc; }
+tbody tr:last-child td { border-bottom: none; }
+.up { color: #1D9E75; }
+.down { color: #D85A30; }
+.neutral { color: #999; }
+.wow-cell { font-size: 11px; }
+.metric-val { font-weight: 600; }
+.highlight-row { background: #1f1f1f; }
+.section-divider { border: none; border-top: 1px solid #333; margin: 24px 0; }
+.note { color: #666; font-size: 11px; margin-top: 16px; }
+.kpi-strip { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.kpi-card { background: #1a1a1a; border: 1px solid #333; border-radius: 10px; padding: 14px 18px; flex: 1; min-width: 140px; }
+.kpi-label { font-size: 11px; color: #999; text-transform: uppercase; margin-bottom: 4px; }
+.kpi-val { font-size: 20px; font-weight: 700; }
+.kpi-delta { font-size: 12px; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<h1>🌍 Geo WoW Report — US / GB / AU</h1>
+<div class="subtitle">Search (excl. CRM & Brand) · Fri–Thu weeks · Last 5 complete weeks · Source: Google Ads via Funnel Gate · Aug 9, 2026</div>
+
+<script>
+const DATA = {
+  "US": [
+    {"week":"Jul 3–9","spend":557773,"signups":5587.7,"wm_signups":3266.5,"cps":100,"cpwm":171,"wm_pct":58.5},
+    {"week":"Jul 10–16","spend":551199,"signups":6380.3,"wm_signups":3547.4,"cps":86,"cpwm":155,"wm_pct":55.6},
+    {"week":"Jul 17–23","spend":604648,"signups":6853.2,"wm_signups":3808.1,"cps":88,"cpwm":159,"wm_pct":55.6},
+    {"week":"Jul 24–30","spend":528229,"signups":6457.7,"wm_signups":3454.9,"cps":82,"cpwm":153,"wm_pct":53.5},
+    {"week":"Jul 31–Aug 6","spend":555822,"signups":6455.9,"wm_signups":3687.5,"cps":86,"cpwm":151,"wm_pct":57.1}
+  ],
+  "GB": [
+    {"week":"Jul 3–9","spend":68871,"signups":754.7,"wm_signups":709.2,"cps":91,"cpwm":97,"wm_pct":94.0},
+    {"week":"Jul 10–16","spend":73485,"signups":1021.0,"wm_signups":955.2,"cps":72,"cpwm":77,"wm_pct":93.6},
+    {"week":"Jul 17–23","spend":68699,"signups":977.2,"wm_signups":856.1,"cps":70,"cpwm":80,"wm_pct":87.6},
+    {"week":"Jul 24–30","spend":62094,"signups":887.5,"wm_signups":779.5,"cps":70,"cpwm":80,"wm_pct":87.8},
+    {"week":"Jul 31–Aug 6","spend":89930,"signups":1199.9,"wm_signups":958.9,"cps":75,"cpwm":94,"wm_pct":79.9}
+  ],
+  "AU": [
+    {"week":"Jul 3–9","spend":30863,"signups":425.2,"wm_signups":355.1,"cps":73,"cpwm":87,"wm_pct":83.5},
+    {"week":"Jul 10–16","spend":39356,"signups":701.2,"wm_signups":644.8,"cps":56,"cpwm":61,"wm_pct":92.0},
+    {"week":"Jul 17–23","spend":49204,"signups":844.3,"wm_signups":738.9,"cps":58,"cpwm":67,"wm_pct":87.5},
+    {"week":"Jul 24–30","spend":43557,"signups":845.2,"wm_signups":738.7,"cps":52,"cpwm":59,"wm_pct":87.4},
+    {"week":"Jul 31–Aug 6","spend":42461,"signups":702.9,"wm_signups":615.9,"cps":60,"cpwm":69,"wm_pct":87.6}
+  ]
+};
+
+const FLAGS = {"US":"🇺🇸","GB":"🇬🇧","AU":"🇦🇺"};
+
+function pctChange(curr, prev) {
+  if (!prev || prev === 0) return {text: "—", cls: "neutral"};
+  const pct = ((curr - prev) / prev * 100);
+  const sign = pct >= 0 ? "+" : "";
+  const cls = pct > 1 ? "up" : pct < -1 ? "down" : "neutral";
+  return {text: sign + pct.toFixed(1) + "%", cls: cls};
+}
+
+function ppChange(curr, prev) {
+  if (prev === undefined) return {text: "—", cls: "neutral"};
+  const diff = curr - prev;
+  const sign = diff >= 0 ? "+" : "";
+  const cls = diff > 0.5 ? "up" : diff < -0.5 ? "down" : "neutral";
+  return {text: sign + diff.toFixed(1) + "pp", cls: cls};
+}
+
+function fmt$(n) { return "$" + n.toLocaleString(); }
+function fmtN(n) { return n >= 10 ? Math.round(n).toLocaleString() : n.toFixed(1); }
+
+document.addEventListener("DOMContentLoaded", function() {
+  const container = document.getElementById("tables");
+
+  for (const geo of ["US", "GB", "AU"]) {
+    const rows = DATA[geo];
+    const last = rows[rows.length - 1];
+    const prev = rows[rows.length - 2];
+
+    // KPI strip
+    let kpiHtml = `<div class="geo-section"><div class="geo-header"><span class="geo-flag">${FLAGS[geo]}</span> ${geo}</div>`;
+    kpiHtml += `<div class="kpi-strip">`;
+    
+    const kpis = [
+      {label: "Spend", val: fmt$(last.spend), delta: pctChange(last.spend, prev.spend)},
+      {label: "Signups", val: fmtN(last.signups), delta: pctChange(last.signups, prev.signups)},
+      {label: "CPS", val: fmt$(last.cps), delta: pctChange(last.cps, prev.cps), invert: true},
+      {label: "WM Signups", val: fmtN(last.wm_signups), delta: pctChange(last.wm_signups, prev.wm_signups)},
+      {label: "CPWM", val: fmt$(last.cpwm), delta: pctChange(last.cpwm, prev.cpwm), invert: true},
+      {label: "WM%", val: last.wm_pct.toFixed(1) + "%", delta: ppChange(last.wm_pct, prev.wm_pct)},
+    ];
+
+    for (const k of kpis) {
+      let cls = k.delta.cls;
+      if (k.invert) cls = cls === "up" ? "down" : cls === "down" ? "up" : cls;
+      kpiHtml += `<div class="kpi-card"><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.val}</div><div class="kpi-delta ${cls}">${k.delta.text} WoW</div></div>`;
+    }
+    kpiHtml += `</div>`;
+
+    // Table
+    kpiHtml += `<table><thead><tr>
+      <th>Week</th>
+      <th>Spend</th><th>WoW</th>
+      <th>Signups</th><th>WoW</th>
+      <th>CPS</th><th>WoW</th>
+      <th>WM SU</th><th>WoW</th>
+      <th>CPWM</th><th>WoW</th>
+      <th>WM%</th><th>WoW</th>
+    </tr></thead><tbody>`;
+
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const p = i > 0 ? rows[i-1] : null;
+      const isLast = i === rows.length - 1;
+
+      const spendWow = p ? pctChange(r.spend, p.spend) : {text:"—",cls:"neutral"};
+      const suWow = p ? pctChange(r.signups, p.signups) : {text:"—",cls:"neutral"};
+      const cpsWow = p ? pctChange(r.cps, p.cps) : {text:"—",cls:"neutral"};
+      const cpsWowCls = cpsWow.cls === "up" ? "down" : cpsWow.cls === "down" ? "up" : "neutral";
+      const wmWow = p ? pctChange(r.wm_signups, p.wm_signups) : {text:"—",cls:"neutral"};
+      const cpwmWow = p ? pctChange(r.cpwm, p.cpwm) : {text:"—",cls:"neutral"};
+      const cpwmWowCls = cpwmWow.cls === "up" ? "down" : cpwmWow.cls === "down" ? "up" : "neutral";
+      const wmPctWow = p ? ppChange(r.wm_pct, p.wm_pct) : {text:"—",cls:"neutral"};
+
+      kpiHtml += `<tr class="${isLast ? 'highlight-row' : ''}">
+        <td>${r.week}</td>
+        <td class="metric-val">${fmt$(r.spend)}</td><td class="wow-cell ${spendWow.cls}">${spendWow.text}</td>
+        <td class="metric-val">${fmtN(r.signups)}</td><td class="wow-cell ${suWow.cls}">${suWow.text}</td>
+        <td class="metric-val">${fmt$(r.cps)}</td><td class="wow-cell ${cpsWowCls}">${cpsWow.text}</td>
+        <td class="metric-val">${fmtN(r.wm_signups)}</td><td class="wow-cell ${wmWow.cls}">${wmWow.text}</td>
+        <td class="metric-val">${fmt$(r.cpwm)}</td><td class="wow-cell ${cpwmWowCls}">${cpwmWow.text}</td>
+        <td class="metric-val">${r.wm_pct.toFixed(1)}%</td><td class="wow-cell ${wmPctWow.cls}">${wmPctWow.text}</td>
+      </tr>`;
+    }
+
+    kpiHtml += `</tbody></table></div>`;
+    container.innerHTML += kpiHtml;
+  }
+});
+</script>
+
+<div id="tables"></div>
+
+<div class="note">
+  <strong>Note:</strong> "WM Signups" = Hard Signups from Work Management-focused campaign clusters (Project, Task, Gantt, Calendar, To Do, General, Marketing, Logistics). 
+  This is a campaign-cluster proxy — not the BigBrain "Work Manager" product-selection metric. 
+  CPWM = Total Spend ÷ WM Signups. CPS = Total Spend ÷ Total Signups. 
+  Weeks are Fri–Thu. Last week (Aug 7+) excluded as partial.
+</div>
+
+</body>
+</html>
