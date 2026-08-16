@@ -70,95 +70,71 @@ GEO_CLUSTERS = {
     "mx": "Mexico",
 }
 
-# ── Cluster value → Dashboard cluster name ──
-# Position 5 (long format) or position 2 (short format)
-CLUSTER_MAP = {
-    # Brand
-    "brand": "Brand",
-    "brand_lt": "Brand",
-    "brands_t": "Brand",
-    # Competitors
-    "comp1": "Competitors",
-    "comp_asana": "Competitors",
-    "comp_basecamp": "Competitors",
-    "comp_clickup": "Competitors",
-    "comp_comp2": "Competitors",
-    "comp_exp": "Competitors",
-    "comp_microsoft_pm": "Competitors",
-    "comp_microsoft_teams": "Competitors",
-    "comp_smartsheet": "Competitors",
-    "comp_trello": "Competitors",
-    "comp_jira": "Competitors",
-    # Project
-    "project_management": "Project",
-    "project_management_free": "Project",
-    "project_management_lt": "Project",
-    "project_templates": "Project",
-    "project_tracking": "Project",
-    "projectgen": "Project",
-    "pm_comparison": "Project",
-    "pm_free": "Project",
-    "pm_tool": "Project",
-    # Task
-    "task_management": "Task",
-    "taskgen": "Task",
-    # Gantt
-    "gantt": "Gantt",
-    "gantt_free": "Gantt",
-    "gantt_template": "Gantt",
-    "timeline": "Gantt",
-    # Calendar
-    "calendar": "Calendar",
-    "shared_calendar": "Calendar",
-    # To Do
-    "to_do_list": "To Do",
-    "checklist": "To Do",
-    # General
-    "general": "General",
-    "management": "General",
-    # Marketing
-    "marketing": "Marketing",
-    "marketing_templates": "Marketing",
-    "marketing_calendar": "Marketing",
-    "social_media": "Marketing",
-    "content_calendar": "Marketing",
-    # Logistics
-    "logistics": "Logistics",
-    "order_mgmt": "Logistics",
-    "production_gen": "Logistics",
-    # Agent clusters
-    "agent_aihr": "Agent - HR",
-    "agent_aifinance": "Agent - Finance",
-    "agent_aiit": "Agent - IT",
-    "agent_ailegal": "Agent - Legal",
-    "agent_ailegal_contract": "Agent - Legal",
-    "agent_ainote_taker": "Agent - Note Taker",
-    "agent_aireal_estate": "Agent - Real Estate",
-    "agent_aiwork_builder": "Work Builder (agent)",
-    "agent_aiwork_process": "Agent - Work Process",
-    "agent_aiconstruction": "Agent - Construction",
-    "agent_aimarketing": "Agent - Marketing",
-    "agent_aigeneric": "Agent - Generic",
-    "agent_aicomp": "Agent - Comp",
-    # Other / misc
-    "workflow": "General",
-    "kanban": "Competitors",
-    "dashboards": "General",
-    "schedule": "Other",
-    "planner": "Other",
-    "team": "Other",
-    "tracker": "Other",
-    "templates": "Other",
-    "all_categories": "Other",
-    "construction_management": "Logistics",
-    "construction_gmao": "Logistics",
-    "schedule": "Calendar",
-    "task_free": "Task",
-    "kanban": "Competitors",
-    "email_marketing": "Marketing",
-    # Tech
-    "tech": "Tech",
-}
+# ── Keyword → Cluster mapping (OR logic) ──
+# Checked against the cluster_val extracted from position 5 (long) or 2 (short).
+# Order matters: more specific keywords first to avoid false matches.
+# Each entry: (keyword, cluster_name, match_mode)
+#   match_mode: "startswith" = cluster_val.startswith(kw)
+#               "exact" = cluster_val == kw
+#               "contains" = kw in cluster_val
+KEYWORD_CLUSTERS = [
+    # Agent clusters (most specific — prefix match, before generic keywords)
+    ("agent_aihr", "Agent - HR", "startswith"),
+    ("agent_aifinance", "Agent - Finance", "startswith"),
+    ("agent_aiit", "Agent - IT", "startswith"),
+    ("agent_ailegal", "Agent - Legal", "startswith"),
+    ("agent_ainote", "Agent - Note Taker", "startswith"),
+    ("agent_aireal", "Agent - Real Estate", "startswith"),
+    ("agent_aiwork", "Agent - Generic", "startswith"),  # covers work_builder + work_process
+    ("agent_aiconstruction", "Agent - Construction", "startswith"),
+    ("agent_aimarketing", "Agent - Marketing", "startswith"),
+    ("agent_aigeneric", "Agent - Generic", "startswith"),
+    ("agent_aicomp", "Agent - Comp", "startswith"),
+    # Specific clusters (before General to avoid "management" overlap)
+    ("project", "Project", "startswith"),
+    ("projectgen", "Project", "exact"),
+    ("pm_", "Project", "startswith"),
+    ("task", "Task", "startswith"),
+    ("gantt", "Gantt", "startswith"),
+    ("timeline", "Gantt", "exact"),
+    ("marketing", "Marketing", "startswith"),
+    ("social_media", "Marketing", "startswith"),
+    ("content_calendar", "Marketing", "exact"),
+    ("email_marketing", "Marketing", "exact"),
+    ("schedule", "Calendar", "startswith"),
+    ("shared", "Calendar", "startswith"),
+    ("calendar", "Calendar", "startswith"),
+    ("to_do", "To Do", "startswith"),
+    ("checklist", "To Do", "exact"),
+    ("construction", "Logistics", "startswith"),
+    ("production", "Logistics", "startswith"),
+    ("order_mg", "Logistics", "startswith"),
+    ("logistics", "Logistics", "exact"),
+    # General — no "management" to avoid matching project_management etc.
+    ("general", "General", "startswith"),
+    ("workflow", "General", "exact"),
+    ("dashboards", "General", "exact"),
+    # Other known keywords
+    ("kanban", "Competitors", "exact"),
+    ("tech", "Tech", "exact"),
+    ("planner", "Other", "exact"),
+    ("team", "Other", "exact"),
+    ("tracker", "Other", "exact"),
+    ("templates", "Other", "exact"),
+    ("all_categories", "Other", "exact"),
+]
+
+
+def match_keyword_cluster(cluster_val: str) -> str | None:
+    """Match a cluster_val against KEYWORD_CLUSTERS using OR logic."""
+    for kw, cluster_name, mode in KEYWORD_CLUSTERS:
+        if mode == "startswith" and cluster_val.startswith(kw):
+            return cluster_name
+        elif mode == "exact" and cluster_val == kw:
+            return cluster_name
+        elif mode == "contains" and kw in cluster_val:
+            return cluster_name
+    return None
 
 def extract_cluster(campaign_name: str, account_id: str) -> str | None:
     """Extract dashboard cluster from campaign name. Returns None to skip."""
@@ -220,23 +196,20 @@ def extract_cluster(campaign_name: str, account_id: str) -> str | None:
     if region in GEO_CLUSTERS:
         return GEO_CLUSTERS[region]
 
-    # Map cluster value to dashboard name
-    if cluster_val in CLUSTER_MAP:
-        mapped = CLUSTER_MAP[cluster_val]
-        # WW region: non-Brand/non-Competitors clusters → WW
-        if region == "ww" and mapped not in ("Brand", "Competitors"):
-            return "WW"
-        return mapped
+    # WW region → WW cluster (before keyword matching)
+    if region == "ww":
+        return "WW"
 
-    # Fallback: try prefix matching for comp_ patterns
+    # Match cluster_val against keyword list (OR logic, priority order)
+    matched = match_keyword_cluster(cluster_val)
+    if matched:
+        return matched
+
+    # Fallback: try prefix matching for unknown comp_ / agent_ patterns
     if cluster_val.startswith("comp_"):
         return "Competitors"
     if cluster_val.startswith("agent_ai"):
         return "Other"  # Unknown agent type
-
-    # WW region fallback: anything not brand/comp → WW
-    if region == "ww":
-        return "WW"
 
     return "Other"
 
