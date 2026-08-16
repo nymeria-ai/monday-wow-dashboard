@@ -3,21 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VBB vs Payers — Correlation Analysis</title>
+<title>VBB Correlation Analysis</title>
 <style>
 :root {
-    --bg: #0f0f0f;
-    --surface-0: #1a1a1a;
-    --surface-1: #222;
-    --surface-2: #272727;
-    --border: #333;
-    --text: #e8e8e8;
-    --text-secondary: #999;
-    --green: #4ade80;
-    --red: #f87171;
-    --amber: #fbbf24;
-    --blue: #60a5fa;
-    --purple: #a78bfa;
+    --bg: #0f0f0f; --surface-0: #1a1a1a; --surface-1: #222; --surface-2: #272727;
+    --border: #333; --text: #e8e8e8; --text-secondary: #999;
+    --green: #4ade80; --red: #f87171; --amber: #fbbf24; --blue: #60a5fa; --purple: #a78bfa;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -28,17 +19,25 @@ body {
 h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
 h2 { font-size: 15px; font-weight: 600; margin: 24px 0 12px; color: var(--text-secondary); }
 .subtitle { color: var(--text-secondary); font-size: 12px; margin-bottom: 20px; }
-.toggle-bar {
-    display: flex; gap: 8px; margin-bottom: 20px;
+
+/* Tab bars */
+.tab-bar { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid var(--border); }
+.tab-btn {
+    background: transparent; color: var(--text-secondary); border: none; border-bottom: 2px solid transparent;
+    padding: 10px 20px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+    margin-bottom: -2px; transition: all 0.15s;
 }
+.tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+.tab-btn:hover { color: var(--text); }
+
+.toggle-bar { display: flex; gap: 8px; margin-bottom: 20px; }
 .toggle-btn {
     background: var(--surface-1); color: var(--text-secondary); border: 1px solid var(--border);
     border-radius: 6px; padding: 6px 16px; font-size: 12px; cursor: pointer; font-family: inherit;
 }
-.toggle-btn.active {
-    background: var(--blue); color: #fff; border-color: var(--blue);
-}
+.toggle-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
 .toggle-btn:hover { border-color: var(--blue); }
+
 .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
 .stat-card { background: var(--surface-0); border-radius: 10px; padding: 14px; }
 .stat-label { font-size: 10px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.4px; }
@@ -59,12 +58,19 @@ th { background: var(--surface-1); text-align: left; padding: 10px 12px; font-si
 td { padding: 8px 12px; border-top: 1px solid var(--border); font-size: 12px; }
 .right { text-align: right; }
 .weak { color: var(--amber); }
+.moderate { color: #fb923c; }
+.strong { color: var(--green); }
 </style>
 </head>
 <body>
 
-<h1>VBB vs Payers — Correlation Analysis</h1>
-<p class="subtitle">Main Account (3746504118) · Apr 18 – Aug 2, 2026 · 107 days (last 120 excl. 14-day bake) · Raw data at daily level · Both metrics same click-date attribution · Source: Google Ads API</p>
+<h1>VBB Correlation Analysis</h1>
+<p class="subtitle">Main Account (3746504118) · Apr 18 – Aug 2, 2026 · Last 120 days excl. 14-day bake · Both metrics same click-date attribution · Source: Google Ads API</p>
+
+<div class="tab-bar">
+    <button class="tab-btn active" data-tab="payers">VBB vs Payers</button>
+    <button class="tab-btn" data-tab="agents">VBB vs Agents Created (Agentic)</button>
+</div>
 
 <div class="toggle-bar">
     <button class="toggle-btn active" data-view="daily">Daily</button>
@@ -74,12 +80,12 @@ td { padding: 8px 12px; border-top: 1px solid var(--border); font-size: 12px; }
 <div class="stats-row" id="stats-row"></div>
 
 <div class="chart-block">
-    <h2 style="margin-top:0">Trend — VBB Value & Payers Count</h2>
+    <h2 style="margin-top:0" id="trend-title">Trend</h2>
     <div style="height:320px"><canvas id="trend-chart"></canvas></div>
 </div>
 
 <div class="chart-block">
-    <h2 style="margin-top:0">Scatter Plot — VBB vs Payers (with regression line)</h2>
+    <h2 style="margin-top:0" id="scatter-title">Scatter Plot</h2>
     <div style="height:340px"><canvas id="scatter-chart"></canvas></div>
 </div>
 
@@ -93,52 +99,46 @@ td { padding: 8px 12px; border-top: 1px solid var(--border); font-size: 12px; }
 <h2>Raw Data</h2>
 <div class="table-wrap">
     <table>
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th class="right">Payers</th>
-                <th class="right">VBB Value</th>
-                <th class="right">VBB / Payer</th>
-            </tr>
-        </thead>
+        <thead id="table-head"></thead>
         <tbody id="table-body"></tbody>
     </table>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
-const DAILY = [{"date":"2026-04-18","payers":2.0,"vbb":26942.09},{"date":"2026-04-19","payers":4.0,"vbb":50224.48},{"date":"2026-04-20","payers":19.0,"vbb":173111.67},{"date":"2026-04-21","payers":15.0,"vbb":143099.29},{"date":"2026-04-22","payers":12.0,"vbb":140340.83},{"date":"2026-04-23","payers":15.0,"vbb":163786.6},{"date":"2026-04-24","payers":9.0,"vbb":86700.3},{"date":"2026-04-25","payers":2.0,"vbb":28856.98},{"date":"2026-04-26","payers":1.0,"vbb":32829.3},{"date":"2026-04-27","payers":17.0,"vbb":137522.93},{"date":"2026-04-28","payers":18.0,"vbb":182942.19},{"date":"2026-04-29","payers":15.0,"vbb":142924.41},{"date":"2026-04-30","payers":15.0,"vbb":127199.65},{"date":"2026-05-01","payers":10.0,"vbb":69004.65},{"date":"2026-05-02","payers":3.0,"vbb":27047.67},{"date":"2026-05-03","payers":4.0,"vbb":29445.63},{"date":"2026-05-04","payers":15.0,"vbb":112016.01},{"date":"2026-05-05","payers":15.0,"vbb":164487.59},{"date":"2026-05-06","payers":9.0,"vbb":161649.26},{"date":"2026-05-07","payers":15.0,"vbb":114905.33},{"date":"2026-05-08","payers":9.0,"vbb":45033.74},{"date":"2026-05-09","payers":4.0,"vbb":21715.82},{"date":"2026-05-10","payers":1.0,"vbb":21351.26},{"date":"2026-05-11","payers":15.0,"vbb":155630.02},{"date":"2026-05-12","payers":19.0,"vbb":136891.55},{"date":"2026-05-13","payers":19.0,"vbb":120487.6},{"date":"2026-05-14","payers":13.0,"vbb":137128.58},{"date":"2026-05-15","payers":16.0,"vbb":76761.23},{"date":"2026-05-16","payers":3.0,"vbb":27509.88},{"date":"2026-05-17","payers":5.0,"vbb":21010.85},{"date":"2026-05-18","payers":12.0,"vbb":133581.1},{"date":"2026-05-19","payers":21.0,"vbb":134312.53},{"date":"2026-05-20","payers":18.0,"vbb":183279.44},{"date":"2026-05-21","payers":26.0,"vbb":145270.41},{"date":"2026-05-22","payers":10.0,"vbb":65441.78},{"date":"2026-05-23","payers":4.0,"vbb":14072.77},{"date":"2026-05-24","payers":3.0,"vbb":36281.59},{"date":"2026-05-25","payers":8.0,"vbb":67055.22},{"date":"2026-05-26","payers":12.0,"vbb":151240.76},{"date":"2026-05-27","payers":16.0,"vbb":154130.77},{"date":"2026-05-28","payers":21.0,"vbb":108663.03},{"date":"2026-05-29","payers":22.0,"vbb":108053.11},{"date":"2026-05-30","payers":1.0,"vbb":23007.49},{"date":"2026-05-31","payers":7.0,"vbb":23859.27},{"date":"2026-06-01","payers":16.0,"vbb":141383.66},{"date":"2026-06-02","payers":19.0,"vbb":119792.33},{"date":"2026-06-03","payers":23.0,"vbb":121759.3},{"date":"2026-06-04","payers":24.0,"vbb":112293.32},{"date":"2026-06-05","payers":7.0,"vbb":81473.8},{"date":"2026-06-06","payers":6.0,"vbb":27532.19},{"date":"2026-06-07","payers":2.0,"vbb":22689.49},{"date":"2026-06-08","payers":19.0,"vbb":135639.2},{"date":"2026-06-09","payers":18.0,"vbb":158428.52},{"date":"2026-06-10","payers":15.0,"vbb":150138.08},{"date":"2026-06-11","payers":14.0,"vbb":112871.19},{"date":"2026-06-12","payers":14.0,"vbb":75990.92},{"date":"2026-06-13","payers":4.0,"vbb":25833.7},{"date":"2026-06-14","payers":3.0,"vbb":21104.97},{"date":"2026-06-15","payers":9.0,"vbb":100400.1},{"date":"2026-06-16","payers":16.0,"vbb":180398.83},{"date":"2026-06-17","payers":14.0,"vbb":114249.52},{"date":"2026-06-18","payers":12.0,"vbb":107569.38},{"date":"2026-06-19","payers":5.0,"vbb":56665.12},{"date":"2026-06-20","payers":3.0,"vbb":16105.26},{"date":"2026-06-21","payers":1.0,"vbb":17186.01},{"date":"2026-06-22","payers":20.0,"vbb":157869.49},{"date":"2026-06-23","payers":13.0,"vbb":139148.47},{"date":"2026-06-24","payers":14.0,"vbb":93423.56},{"date":"2026-06-25","payers":12.0,"vbb":78761.35},{"date":"2026-06-26","payers":7.0,"vbb":74179.1},{"date":"2026-06-27","payers":2.0,"vbb":15744.6},{"date":"2026-06-28","payers":4.0,"vbb":38734.5},{"date":"2026-06-29","payers":14.0,"vbb":133380.35},{"date":"2026-06-30","payers":19.0,"vbb":155285.87},{"date":"2026-07-01","payers":18.0,"vbb":116756.98},{"date":"2026-07-02","payers":8.0,"vbb":69315.92},{"date":"2026-07-03","payers":4.0,"vbb":39891.68},{"date":"2026-07-04","payers":2.0,"vbb":13539.05},{"date":"2026-07-05","payers":3.0,"vbb":22918.64},{"date":"2026-07-06","payers":14.0,"vbb":98851.8},{"date":"2026-07-07","payers":15.0,"vbb":157584.77},{"date":"2026-07-08","payers":12.0,"vbb":117382.64},{"date":"2026-07-09","payers":14.0,"vbb":152690.54},{"date":"2026-07-10","payers":10.0,"vbb":58476.24},{"date":"2026-07-11","payers":3.0,"vbb":34852.37},{"date":"2026-07-12","payers":0,"vbb":25656.18},{"date":"2026-07-13","payers":7.0,"vbb":102168.84},{"date":"2026-07-14","payers":11.0,"vbb":148451.83},{"date":"2026-07-15","payers":18.0,"vbb":143404.33},{"date":"2026-07-16","payers":14.0,"vbb":110034.53},{"date":"2026-07-17","payers":5.0,"vbb":56174.71},{"date":"2026-07-18","payers":3.0,"vbb":33018.03},{"date":"2026-07-19","payers":4.0,"vbb":29422.44},{"date":"2026-07-20","payers":13.0,"vbb":140483.76},{"date":"2026-07-21","payers":13.0,"vbb":145089.74},{"date":"2026-07-22","payers":12.0,"vbb":148085.41},{"date":"2026-07-23","payers":4.0,"vbb":128047.56},{"date":"2026-07-24","payers":9.0,"vbb":111041.0},{"date":"2026-07-25","payers":2.0,"vbb":17981.62},{"date":"2026-07-26","payers":4.0,"vbb":35103.47},{"date":"2026-07-27","payers":7.0,"vbb":114545.6},{"date":"2026-07-28","payers":3.0,"vbb":101498.59},{"date":"2026-07-29","payers":2.0,"vbb":145204.94},{"date":"2026-07-30","payers":5.0,"vbb":108566.15},{"date":"2026-07-31","payers":6.0,"vbb":85753.87},{"date":"2026-08-01","payers":2.0,"vbb":24255.77},{"date":"2026-08-02","payers":4.0,"vbb":39068.64}];
+// ─── DATA ───
+const PAYERS_DAILY = [{"date":"2026-04-18","val":2.0,"vbb":26942.09},{"date":"2026-04-19","val":4.0,"vbb":50224.48},{"date":"2026-04-20","val":19.0,"vbb":173111.67},{"date":"2026-04-21","val":15.0,"vbb":143099.29},{"date":"2026-04-22","val":12.0,"vbb":140340.83},{"date":"2026-04-23","val":15.0,"vbb":163786.6},{"date":"2026-04-24","val":9.0,"vbb":86700.3},{"date":"2026-04-25","val":2.0,"vbb":28856.98},{"date":"2026-04-26","val":1.0,"vbb":32829.3},{"date":"2026-04-27","val":17.0,"vbb":137522.93},{"date":"2026-04-28","val":18.0,"vbb":182942.19},{"date":"2026-04-29","val":15.0,"vbb":142924.41},{"date":"2026-04-30","val":15.0,"vbb":127199.65},{"date":"2026-05-01","val":10.0,"vbb":69004.65},{"date":"2026-05-02","val":3.0,"vbb":27047.67},{"date":"2026-05-03","val":4.0,"vbb":29445.63},{"date":"2026-05-04","val":15.0,"vbb":112016.01},{"date":"2026-05-05","val":15.0,"vbb":164487.59},{"date":"2026-05-06","val":9.0,"vbb":161649.26},{"date":"2026-05-07","val":15.0,"vbb":114905.33},{"date":"2026-05-08","val":9.0,"vbb":45033.74},{"date":"2026-05-09","val":4.0,"vbb":21715.82},{"date":"2026-05-10","val":1.0,"vbb":21351.26},{"date":"2026-05-11","val":15.0,"vbb":155630.02},{"date":"2026-05-12","val":19.0,"vbb":136891.55},{"date":"2026-05-13","val":19.0,"vbb":120487.6},{"date":"2026-05-14","val":13.0,"vbb":137128.58},{"date":"2026-05-15","val":16.0,"vbb":76761.23},{"date":"2026-05-16","val":3.0,"vbb":27509.88},{"date":"2026-05-17","val":5.0,"vbb":21010.85},{"date":"2026-05-18","val":12.0,"vbb":133581.1},{"date":"2026-05-19","val":21.0,"vbb":134312.53},{"date":"2026-05-20","val":18.0,"vbb":183279.44},{"date":"2026-05-21","val":26.0,"vbb":145270.41},{"date":"2026-05-22","val":10.0,"vbb":65441.78},{"date":"2026-05-23","val":4.0,"vbb":14072.77},{"date":"2026-05-24","val":3.0,"vbb":36281.59},{"date":"2026-05-25","val":8.0,"vbb":67055.22},{"date":"2026-05-26","val":12.0,"vbb":151240.76},{"date":"2026-05-27","val":16.0,"vbb":154130.77},{"date":"2026-05-28","val":21.0,"vbb":108663.03},{"date":"2026-05-29","val":22.0,"vbb":108053.11},{"date":"2026-05-30","val":1.0,"vbb":23007.49},{"date":"2026-05-31","val":7.0,"vbb":23859.27},{"date":"2026-06-01","val":16.0,"vbb":141383.66},{"date":"2026-06-02","val":19.0,"vbb":119792.33},{"date":"2026-06-03","val":23.0,"vbb":121759.3},{"date":"2026-06-04","val":24.0,"vbb":112293.32},{"date":"2026-06-05","val":7.0,"vbb":81473.8},{"date":"2026-06-06","val":6.0,"vbb":27532.19},{"date":"2026-06-07","val":2.0,"vbb":22689.49},{"date":"2026-06-08","val":19.0,"vbb":135639.2},{"date":"2026-06-09","val":18.0,"vbb":158428.52},{"date":"2026-06-10","val":15.0,"vbb":150138.08},{"date":"2026-06-11","val":14.0,"vbb":112871.19},{"date":"2026-06-12","val":14.0,"vbb":75990.92},{"date":"2026-06-13","val":4.0,"vbb":25833.7},{"date":"2026-06-14","val":3.0,"vbb":21104.97},{"date":"2026-06-15","val":9.0,"vbb":100400.1},{"date":"2026-06-16","val":16.0,"vbb":180398.83},{"date":"2026-06-17","val":14.0,"vbb":114249.52},{"date":"2026-06-18","val":12.0,"vbb":107569.38},{"date":"2026-06-19","val":5.0,"vbb":56665.12},{"date":"2026-06-20","val":3.0,"vbb":16105.26},{"date":"2026-06-21","val":1.0,"vbb":17186.01},{"date":"2026-06-22","val":20.0,"vbb":157869.49},{"date":"2026-06-23","val":13.0,"vbb":139148.47},{"date":"2026-06-24","val":14.0,"vbb":93423.56},{"date":"2026-06-25","val":12.0,"vbb":78761.35},{"date":"2026-06-26","val":7.0,"vbb":74179.1},{"date":"2026-06-27","val":2.0,"vbb":15744.6},{"date":"2026-06-28","val":4.0,"vbb":38734.5},{"date":"2026-06-29","val":14.0,"vbb":133380.35},{"date":"2026-06-30","val":19.0,"vbb":155285.87},{"date":"2026-07-01","val":18.0,"vbb":116756.98},{"date":"2026-07-02","val":8.0,"vbb":69315.92},{"date":"2026-07-03","val":4.0,"vbb":39891.68},{"date":"2026-07-04","val":2.0,"vbb":13539.05},{"date":"2026-07-05","val":3.0,"vbb":22918.64},{"date":"2026-07-06","val":14.0,"vbb":98851.8},{"date":"2026-07-07","val":15.0,"vbb":157584.77},{"date":"2026-07-08","val":12.0,"vbb":117382.64},{"date":"2026-07-09","val":14.0,"vbb":152690.54},{"date":"2026-07-10","val":10.0,"vbb":58476.24},{"date":"2026-07-11","val":3.0,"vbb":34852.37},{"date":"2026-07-12","val":0,"vbb":25656.18},{"date":"2026-07-13","val":7.0,"vbb":102168.84},{"date":"2026-07-14","val":11.0,"vbb":148451.83},{"date":"2026-07-15","val":18.0,"vbb":143404.33},{"date":"2026-07-16","val":14.0,"vbb":110034.53},{"date":"2026-07-17","val":5.0,"vbb":56174.71},{"date":"2026-07-18","val":3.0,"vbb":33018.03},{"date":"2026-07-19","val":4.0,"vbb":29422.44},{"date":"2026-07-20","val":13.0,"vbb":140483.76},{"date":"2026-07-21","val":13.0,"vbb":145089.74},{"date":"2026-07-22","val":12.0,"vbb":148085.41},{"date":"2026-07-23","val":4.0,"vbb":128047.56},{"date":"2026-07-24","val":9.0,"vbb":111041.0},{"date":"2026-07-25","val":2.0,"vbb":17981.62},{"date":"2026-07-26","val":4.0,"vbb":35103.47},{"date":"2026-07-27","val":7.0,"vbb":114545.6},{"date":"2026-07-28","val":3.0,"vbb":101498.59},{"date":"2026-07-29","val":2.0,"vbb":145204.94},{"date":"2026-07-30","val":5.0,"vbb":108566.15},{"date":"2026-07-31","val":6.0,"vbb":85753.87},{"date":"2026-08-01","val":2.0,"vbb":24255.77},{"date":"2026-08-02","val":4.0,"vbb":39068.64}];
 
-// Aggregate daily → weekly (Mon-Sun)
-function aggregateWeekly(daily) {
-    const weeks = {};
-    daily.forEach(d => {
-        const dt = new Date(d.date + 'T00:00:00');
-        // Get Monday of the week
-        const day = dt.getDay();
-        const diff = dt.getDate() - day + (day === 0 ? -6 : 1);
-        const mon = new Date(dt); mon.setDate(diff);
-        const key = mon.toISOString().split('T')[0];
-        if (!weeks[key]) weeks[key] = { date: key, payers: 0, vbb: 0, days: 0 };
-        weeks[key].payers += d.payers;
-        weeks[key].vbb += d.vbb;
-        weeks[key].days++;
-    });
-    return Object.values(weeks).sort((a, b) => a.date.localeCompare(b.date));
-}
+const AGENTS_DAILY = [{"date":"2026-04-29","val":0,"vbb":2280.0},{"date":"2026-04-30","val":0,"vbb":239.47},{"date":"2026-05-01","val":0,"vbb":264.15},{"date":"2026-05-02","val":0,"vbb":405.73},{"date":"2026-05-03","val":0,"vbb":53.96},{"date":"2026-05-04","val":0,"vbb":74.19},{"date":"2026-05-05","val":0,"vbb":215.16},{"date":"2026-05-06","val":0,"vbb":522.88},{"date":"2026-05-07","val":0,"vbb":778.46},{"date":"2026-05-08","val":0,"vbb":508.64},{"date":"2026-05-09","val":0,"vbb":125.88},{"date":"2026-05-10","val":0,"vbb":104.67},{"date":"2026-05-11","val":0,"vbb":258.96},{"date":"2026-05-12","val":0,"vbb":1225.69},{"date":"2026-05-13","val":0,"vbb":461.51},{"date":"2026-05-14","val":0,"vbb":933.79},{"date":"2026-05-15","val":0,"vbb":1071.69},{"date":"2026-05-16","val":0,"vbb":95.96},{"date":"2026-05-17","val":0,"vbb":293.72},{"date":"2026-05-18","val":0,"vbb":758.44},{"date":"2026-05-19","val":0,"vbb":1139.84},{"date":"2026-05-20","val":0,"vbb":1460.03},{"date":"2026-05-21","val":0,"vbb":1496.03},{"date":"2026-05-22","val":0,"vbb":1688.06},{"date":"2026-05-23","val":0,"vbb":1051.33},{"date":"2026-05-24","val":0,"vbb":1597.33},{"date":"2026-05-25","val":0,"vbb":135.27},{"date":"2026-05-26","val":0,"vbb":1059.61},{"date":"2026-05-27","val":0,"vbb":1388.09},{"date":"2026-05-28","val":0.36,"vbb":1117.58},{"date":"2026-05-29","val":0,"vbb":639.36},{"date":"2026-05-30","val":0,"vbb":787.5},{"date":"2026-05-31","val":0,"vbb":295.67},{"date":"2026-06-01","val":0,"vbb":1145.32},{"date":"2026-06-02","val":0,"vbb":647.1},{"date":"2026-06-03","val":2.0,"vbb":723.38},{"date":"2026-06-04","val":0,"vbb":2647.36},{"date":"2026-06-05","val":0,"vbb":650.41},{"date":"2026-06-06","val":0,"vbb":269.69},{"date":"2026-06-07","val":0,"vbb":2802.69},{"date":"2026-06-08","val":4.0,"vbb":771.05},{"date":"2026-06-09","val":4.0,"vbb":640.7},{"date":"2026-06-10","val":6.0,"vbb":1216.39},{"date":"2026-06-11","val":4.0,"vbb":1565.77},{"date":"2026-06-12","val":1.0,"vbb":923.01},{"date":"2026-06-13","val":2.5,"vbb":461.87},{"date":"2026-06-14","val":1.5,"vbb":2883.66},{"date":"2026-06-15","val":3.5,"vbb":2788.45},{"date":"2026-06-16","val":4.5,"vbb":11828.43},{"date":"2026-06-17","val":5.36,"vbb":3364.8},{"date":"2026-06-18","val":6.0,"vbb":1736.78},{"date":"2026-06-19","val":6.0,"vbb":3004.19},{"date":"2026-06-20","val":7.14,"vbb":1335.18},{"date":"2026-06-21","val":3.64,"vbb":648.26},{"date":"2026-06-22","val":5.0,"vbb":10244.14},{"date":"2026-06-23","val":7.0,"vbb":10087.02},{"date":"2026-06-24","val":9.31,"vbb":4446.84},{"date":"2026-06-25","val":3.0,"vbb":3405.25},{"date":"2026-06-26","val":7.0,"vbb":2316.65},{"date":"2026-06-27","val":5.14,"vbb":2201.52},{"date":"2026-06-28","val":4.0,"vbb":2390.17},{"date":"2026-06-29","val":8.0,"vbb":5843.49},{"date":"2026-06-30","val":6.0,"vbb":3377.4},{"date":"2026-07-01","val":7.0,"vbb":13794.07},{"date":"2026-07-02","val":9.0,"vbb":4655.2},{"date":"2026-07-03","val":13.0,"vbb":3032.94},{"date":"2026-07-04","val":3.0,"vbb":1200.71},{"date":"2026-07-05","val":6.0,"vbb":1771.75},{"date":"2026-07-06","val":13.51,"vbb":3728.48},{"date":"2026-07-07","val":21.64,"vbb":6593.61},{"date":"2026-07-08","val":20.5,"vbb":5490.28},{"date":"2026-07-09","val":27.0,"vbb":5769.57},{"date":"2026-07-10","val":24.49,"vbb":3485.31},{"date":"2026-07-11","val":22.0,"vbb":12253.38},{"date":"2026-07-12","val":32.88,"vbb":3397.89},{"date":"2026-07-13","val":43.25,"vbb":5143.41},{"date":"2026-07-14","val":55.88,"vbb":5571.97},{"date":"2026-07-15","val":41.51,"vbb":14375.03},{"date":"2026-07-16","val":42.59,"vbb":5516.34},{"date":"2026-07-17","val":41.62,"vbb":4423.95},{"date":"2026-07-18","val":44.0,"vbb":3820.92},{"date":"2026-07-19","val":55.0,"vbb":1148.12},{"date":"2026-07-20","val":74.99,"vbb":10602.73},{"date":"2026-07-21","val":78.0,"vbb":5611.09},{"date":"2026-07-22","val":85.0,"vbb":5876.19},{"date":"2026-07-23","val":85.5,"vbb":7928.61},{"date":"2026-07-24","val":79.55,"vbb":5398.06},{"date":"2026-07-25","val":70.14,"vbb":1259.77},{"date":"2026-07-26","val":46.68,"vbb":1200.91},{"date":"2026-07-27","val":80.25,"vbb":8003.71},{"date":"2026-07-28","val":73.9,"vbb":4754.68},{"date":"2026-07-29","val":81.74,"vbb":17812.34},{"date":"2026-07-30","val":52.9,"vbb":2611.0},{"date":"2026-07-31","val":33.0,"vbb":2645.05},{"date":"2026-08-01","val":55.5,"vbb":1034.41},{"date":"2026-08-02","val":31.5,"vbb":987.91}];
 
-// Correlation helper
+const TABS = {
+    payers: {
+        data: PAYERS_DAILY,
+        metricLabel: 'Payers',
+        metricColor: '#60a5fa',
+        vbbFmt: v => '$' + (v >= 1000 ? (v/1000).toFixed(0) + 'K' : v.toFixed(0)),
+        valFmt: v => v.toFixed(1),
+        scope: 'All campaigns · Main account',
+        campaigns: 'All search campaigns',
+    },
+    agents: {
+        data: AGENTS_DAILY,
+        metricLabel: 'Agents Created',
+        metricColor: '#e879f9',
+        vbbFmt: v => '$' + (v >= 1000 ? (v/1000).toFixed(1) + 'K' : v.toFixed(0)),
+        valFmt: v => v.toFixed(1),
+        scope: 'Agentic campaigns only (12 campaigns with "agent" in name)',
+        campaigns: '12 agentic campaigns',
+    }
+};
+
+// ─── HELPERS ───
 function pearson(xs, ys) {
     const n = xs.length;
     if (n < 3) return { r: 0, r2: 0 };
-    const mx = xs.reduce((s,v)=>s+v,0)/n;
-    const my = ys.reduce((s,v)=>s+v,0)/n;
+    const mx = xs.reduce((s,v)=>s+v,0)/n, my = ys.reduce((s,v)=>s+v,0)/n;
     let cov = 0, sx = 0, sy = 0;
-    for (let i = 0; i < n; i++) {
-        cov += (xs[i]-mx)*(ys[i]-my);
-        sx += (xs[i]-mx)**2;
-        sy += (ys[i]-my)**2;
-    }
+    for (let i = 0; i < n; i++) { cov += (xs[i]-mx)*(ys[i]-my); sx += (xs[i]-mx)**2; sy += (ys[i]-my)**2; }
     sx = Math.sqrt(sx); sy = Math.sqrt(sy);
     const r = (sx > 0 && sy > 0) ? cov/(sx*sy) : 0;
     return { r, r2: r*r };
@@ -147,233 +147,199 @@ function pearson(xs, ys) {
 function rollingCorr(data, window) {
     const result = [];
     for (let i = window-1; i < data.length; i++) {
-        const slice = data.slice(i-window+1, i+1);
-        const { r } = pearson(slice.map(d=>d.payers), slice.map(d=>d.vbb));
+        const sl = data.slice(i-window+1, i+1);
+        const { r } = pearson(sl.map(d=>d.val), sl.map(d=>d.vbb));
         result.push({ date: data[i].date, r: Math.round(r*10000)/10000 });
     }
     return result;
 }
 
-const fmtMoney = v => '$' + (v >= 1000 ? (v/1000).toFixed(0) + 'K' : v.toFixed(0));
-const fmtDate = (d, mode) => {
-    const dt = new Date(d + 'T00:00:00');
-    if (mode === 'weekly') return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
-
-let trendChart, scatterChart, rollingChart;
-let currentView = 'daily';
-
-function destroyCharts() {
-    if (trendChart) trendChart.destroy();
-    if (scatterChart) scatterChart.destroy();
-    if (rollingChart) rollingChart.destroy();
+function aggregateWeekly(daily) {
+    const weeks = {};
+    daily.forEach(d => {
+        const dt = new Date(d.date + 'T00:00:00');
+        const day = dt.getDay(); const diff = dt.getDate() - day + (day === 0 ? -6 : 1);
+        const mon = new Date(dt); mon.setDate(diff);
+        const key = mon.toISOString().split('T')[0];
+        if (!weeks[key]) weeks[key] = { date: key, val: 0, vbb: 0 };
+        weeks[key].val += d.val; weeks[key].vbb += d.vbb;
+    });
+    return Object.values(weeks).sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function renderAll(view) {
-    currentView = view;
+const fmtDate = d => { const dt = new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}); };
+
+function strengthLabel(r) {
+    const a = Math.abs(r);
+    if (a < 0.3) return { text: 'Very weak', cls: 'weak' };
+    if (a < 0.5) return { text: 'Weak', cls: 'weak' };
+    if (a < 0.7) return { text: 'Moderate', cls: 'moderate' };
+    return { text: 'Strong', cls: 'strong' };
+}
+
+// ─── RENDERING ───
+let trendChart, scatterChart, rollingChart;
+let currentTab = 'payers', currentView = 'daily';
+
+function destroyCharts() { [trendChart, scatterChart, rollingChart].forEach(c => c && c.destroy()); }
+
+function renderAll() {
     destroyCharts();
-    
-    const data = view === 'daily' ? DAILY : aggregateWeekly(DAILY);
-    const rollWindow = view === 'daily' ? 7 : 4;
-    const pArr = data.map(d => d.payers);
-    const vArr = data.map(d => d.vbb);
-    const { r, r2 } = pearson(pArr, vArr);
+    const cfg = TABS[currentTab];
+    const data = currentView === 'daily' ? cfg.data : aggregateWeekly(cfg.data);
+    const rollWindow = currentView === 'daily' ? 7 : 4;
+    const vArr = data.map(d => d.vbb), mArr = data.map(d => d.val);
+    const { r, r2 } = pearson(mArr, vArr);
     const roll = rollingCorr(data, rollWindow);
-    
+    const sl = strengthLabel(r);
+    const dir = r >= 0 ? 'positive' : 'negative';
+    const avgM = mArr.reduce((s,v)=>s+v,0)/mArr.length;
+    const avgV = vArr.reduce((s,v)=>s+v,0)/vArr.length;
+    const viewLabel = currentView === 'daily' ? 'Daily' : 'Weekly';
+
     // Stats
-    const avgP = pArr.reduce((s,v)=>s+v,0) / pArr.length;
-    const avgV = vArr.reduce((s,v)=>s+v,0) / vArr.length;
-    const rStr = r.toFixed(3);
-    const r2Pct = (r2 * 100).toFixed(1);
-    const strength = Math.abs(r) < 0.3 ? 'Very weak' : Math.abs(r) < 0.5 ? 'Weak' : Math.abs(r) < 0.7 ? 'Moderate' : 'Strong';
-    const direction = r >= 0 ? 'positive' : 'negative';
-    
     document.getElementById('stats-row').innerHTML = `
         <div class="stat-card">
-            <div class="stat-label">Pearson r (${view})</div>
-            <div class="stat-val weak">${rStr}</div>
-            <div class="stat-sub">${strength} ${direction}</div>
+            <div class="stat-label">Pearson r (${viewLabel})</div>
+            <div class="stat-val ${sl.cls}">${r.toFixed(3)}</div>
+            <div class="stat-sub">${sl.text} ${dir}</div>
         </div>
         <div class="stat-card">
             <div class="stat-label">R² (explained variance)</div>
-            <div class="stat-val weak">${r2Pct}%</div>
-            <div class="stat-sub">VBB explains ${r2Pct}% of Payer variance</div>
+            <div class="stat-val ${sl.cls}">${(r2*100).toFixed(1)}%</div>
+            <div class="stat-sub">VBB explains ${(r2*100).toFixed(1)}% of ${cfg.metricLabel} variance</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">Avg ${view === 'daily' ? 'Daily' : 'Weekly'} Payers</div>
-            <div class="stat-val">${avgP.toFixed(view === 'daily' ? 1 : 0)}</div>
-            <div class="stat-sub">Range: ${Math.min(...pArr).toFixed(0)}–${Math.max(...pArr).toFixed(0)}</div>
+            <div class="stat-label">Avg ${viewLabel} ${cfg.metricLabel}</div>
+            <div class="stat-val">${avgM.toFixed(1)}</div>
+            <div class="stat-sub">Range: ${Math.min(...mArr).toFixed(0)}–${Math.max(...mArr).toFixed(0)}</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">Avg ${view === 'daily' ? 'Daily' : 'Weekly'} VBB</div>
-            <div class="stat-val">${fmtMoney(avgV)}</div>
-            <div class="stat-sub">Range: ${fmtMoney(Math.min(...vArr))}–${fmtMoney(Math.max(...vArr))}</div>
+            <div class="stat-label">Avg ${viewLabel} VBB</div>
+            <div class="stat-val">${cfg.vbbFmt(avgV)}</div>
+            <div class="stat-sub">${cfg.campaigns} · ${data.length} ${currentView === 'daily' ? 'days' : 'weeks'}</div>
         </div>
     `;
-    
-    // Trend chart
-    const labels = data.map(d => fmtDate(d.date, view));
+
+    const labels = data.map(d => fmtDate(d.date));
+
+    // Trend
+    document.getElementById('trend-title').textContent = `Trend — VBB Value & ${cfg.metricLabel}`;
     trendChart = new Chart(document.getElementById('trend-chart').getContext('2d'), {
         type: 'line',
-        data: {
-            labels,
-            datasets: [
-                {
-                    label: 'Payers', data: pArr, borderColor: '#60a5fa',
-                    backgroundColor: 'rgba(96,165,250,0.08)', fill: true, tension: 0.3,
-                    pointRadius: view === 'daily' ? 2.5 : 4, pointBackgroundColor: '#60a5fa',
-                    borderWidth: 2, yAxisID: 'y1',
-                },
-                {
-                    label: 'VBB Value', data: vArr, borderColor: '#f59e0b',
-                    backgroundColor: 'transparent', tension: 0.3,
-                    pointRadius: view === 'daily' ? 2.5 : 4, pointBackgroundColor: '#f59e0b',
-                    borderWidth: 2, yAxisID: 'y2',
-                }
-            ]
-        },
+        data: { labels, datasets: [
+            { label: cfg.metricLabel, data: mArr, borderColor: cfg.metricColor, backgroundColor: cfg.metricColor+'15', fill: true, tension: 0.3, pointRadius: currentView==='daily'?2:4, pointBackgroundColor: cfg.metricColor, borderWidth: 2, yAxisID: 'y1' },
+            { label: 'VBB Value', data: vArr, borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.3, pointRadius: currentView==='daily'?2:4, pointBackgroundColor: '#f59e0b', borderWidth: 2, yAxisID: 'y2' }
+        ]},
         options: {
             responsive: true, maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             plugins: {
                 legend: { labels: { color: '#999', font: { size: 11 } } },
-                tooltip: {
-                    backgroundColor: '#1a1a1a', borderColor: '#333', borderWidth: 1,
-                    titleColor: '#e8e8e8', bodyColor: '#ccc',
-                    callbacks: {
-                        title: ctx => data[ctx[0].dataIndex].date,
-                        label: ctx => ctx.dataset.label === 'VBB Value'
-                            ? `VBB: $${(ctx.raw/1000).toFixed(0)}K` : `Payers: ${ctx.raw.toFixed(1)}`
-                    }
-                }
+                tooltip: { backgroundColor: '#1a1a1a', borderColor: '#333', borderWidth: 1, titleColor: '#e8e8e8', bodyColor: '#ccc',
+                    callbacks: { title: ctx => data[ctx[0].dataIndex].date,
+                        label: ctx => ctx.dataset.label === 'VBB Value' ? `VBB: ${cfg.vbbFmt(ctx.raw)}` : `${cfg.metricLabel}: ${cfg.valFmt(ctx.raw)}` } }
             },
             scales: {
-                x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#999', maxRotation: 45, maxTicksLimit: view === 'daily' ? 15 : 20 } },
-                y1: { position: 'left', title: { display: true, text: 'Payers', color: '#60a5fa' }, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#60a5fa', font: { size: 10 } }, beginAtZero: true },
-                y2: { position: 'right', title: { display: true, text: 'VBB Value', color: '#f59e0b' }, grid: { display: false }, ticks: { color: '#f59e0b', font: { size: 10 }, callback: v => '$'+(v/1000).toFixed(0)+'K' }, beginAtZero: true }
+                x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#999', maxRotation: 45, maxTicksLimit: 15 } },
+                y1: { position: 'left', title: { display: true, text: cfg.metricLabel, color: cfg.metricColor }, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: cfg.metricColor, font: { size: 10 } }, beginAtZero: true },
+                y2: { position: 'right', title: { display: true, text: 'VBB Value', color: '#f59e0b' }, grid: { display: false }, ticks: { color: '#f59e0b', font: { size: 10 }, callback: v => cfg.vbbFmt(v) }, beginAtZero: true }
             }
         }
     });
 
-    // Scatter + regression
-    const meanP2 = avgP, meanV2 = avgV;
-    const slope = pArr.reduce((s,p,i) => s + (p-meanP2)*(vArr[i]-meanV2), 0) / pArr.reduce((s,p) => s + (p-meanP2)**2, 0);
-    const intercept = meanV2 - slope * meanP2;
-    const minP = Math.min(...pArr), maxP = Math.max(...pArr);
+    // Scatter
+    document.getElementById('scatter-title').textContent = `Scatter Plot — VBB vs ${cfg.metricLabel} (with regression)`;
+    const meanM = avgM, meanV = avgV;
+    const slope = mArr.reduce((s,p,i) => s + (p-meanM)*(vArr[i]-meanV), 0) / mArr.reduce((s,p) => s + (p-meanM)**2, 0);
+    const intercept = meanV - slope * meanM;
+    const minM = Math.min(...mArr), maxM = Math.max(...mArr);
 
     scatterChart = new Chart(document.getElementById('scatter-chart').getContext('2d'), {
         type: 'scatter',
-        data: {
-            datasets: [
-                {
-                    label: `${view === 'daily' ? 'Daily' : 'Weekly'} Data Points`,
-                    data: data.map(d => ({ x: d.payers, y: d.vbb })),
-                    backgroundColor: '#60a5fa', pointRadius: view === 'daily' ? 5 : 7, pointHoverRadius: 8,
-                },
-                {
-                    label: `Regression (r=${rStr})`,
-                    data: [{ x: Math.max(0, minP-2), y: slope*Math.max(0,minP-2)+intercept }, { x: maxP+2, y: slope*(maxP+2)+intercept }],
-                    type: 'line', borderColor: '#f8717188', borderWidth: 2, borderDash: [6,4], pointRadius: 0, fill: false,
-                }
-            ]
-        },
+        data: { datasets: [
+            { label: `${viewLabel} Data Points`, data: data.map(d => ({x: d.val, y: d.vbb})), backgroundColor: cfg.metricColor, pointRadius: currentView==='daily'?5:7, pointHoverRadius: 8 },
+            { label: `Regression (r=${r.toFixed(3)})`, data: [{x:Math.max(0,minM-1),y:slope*Math.max(0,minM-1)+intercept},{x:maxM+1,y:slope*(maxM+1)+intercept}], type:'line', borderColor:'#f8717188', borderWidth:2, borderDash:[6,4], pointRadius:0, fill:false }
+        ]},
         options: {
             responsive: true, maintainAspectRatio: false,
             plugins: {
                 legend: { labels: { color: '#999', font: { size: 11 } } },
-                tooltip: {
-                    backgroundColor: '#1a1a1a', borderColor: '#333', borderWidth: 1,
-                    titleColor: '#e8e8e8', bodyColor: '#ccc',
-                    callbacks: { label: ctx => ctx.datasetIndex === 0 ? `Payers: ${ctx.raw.x.toFixed(1)}, VBB: $${(ctx.raw.y/1000).toFixed(0)}K` : '' }
-                }
+                tooltip: { backgroundColor: '#1a1a1a', borderColor: '#333', borderWidth: 1, titleColor: '#e8e8e8', bodyColor: '#ccc',
+                    callbacks: { label: ctx => ctx.datasetIndex === 0 ? `${cfg.metricLabel}: ${cfg.valFmt(ctx.raw.x)}, VBB: ${cfg.vbbFmt(ctx.raw.y)}` : '' } }
             },
             scales: {
-                x: { title: { display: true, text: `Payers (${view} count)`, color: '#999' }, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#999' } },
-                y: { title: { display: true, text: 'VBB Value ($)', color: '#999' }, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#999', callback: v => '$'+(v/1000).toFixed(0)+'K' } }
+                x: { title: { display: true, text: `${cfg.metricLabel} (${currentView} count)`, color: '#999' }, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#999' } },
+                y: { title: { display: true, text: 'VBB Value ($)', color: '#999' }, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#999', callback: v => cfg.vbbFmt(v) } }
             }
         }
     });
 
-    // Rolling correlation
-    document.getElementById('rolling-title').textContent = `Rolling ${rollWindow}-${view === 'daily' ? 'Day' : 'Week'} Correlation Over Time`;
-    
+    // Rolling
+    const rollLabel = `Rolling ${rollWindow}-${currentView==='daily'?'Day':'Week'} Correlation Over Time`;
+    document.getElementById('rolling-title').textContent = rollLabel;
     rollingChart = new Chart(document.getElementById('rolling-chart').getContext('2d'), {
         type: 'line',
-        data: {
-            labels: roll.map(d => fmtDate(d.date, view)),
-            datasets: [
-                {
-                    label: `Rolling ${rollWindow}-${view === 'daily' ? 'day' : 'week'} r`,
-                    data: roll.map(d => d.r), borderColor: '#a78bfa',
-                    backgroundColor: roll.map(d => d.r >= 0 ? 'rgba(74,222,128,0.15)' : 'rgba(248,113,113,0.15)'),
-                    fill: true, tension: 0.3, pointRadius: view === 'daily' ? 2 : 5,
-                    pointBackgroundColor: roll.map(d => d.r >= 0 ? '#4ade80' : '#f87171'), borderWidth: 2,
-                },
-                { label: 'Zero', data: roll.map(() => 0), borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderDash: [4,4], pointRadius: 0, fill: false }
-            ]
-        },
+        data: { labels: roll.map(d => fmtDate(d.date)), datasets: [
+            { label: `Rolling r`, data: roll.map(d=>d.r), borderColor: '#a78bfa', backgroundColor: roll.map(d => d.r>=0?'rgba(74,222,128,0.15)':'rgba(248,113,113,0.15)'), fill: true, tension: 0.3, pointRadius: currentView==='daily'?1.5:5, pointBackgroundColor: roll.map(d=>d.r>=0?'#4ade80':'#f87171'), borderWidth: 2 },
+            { label: 'Zero', data: roll.map(()=>0), borderColor:'rgba(255,255,255,0.15)', borderWidth:1, borderDash:[4,4], pointRadius:0, fill:false }
+        ]},
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: '#1a1a1a', borderColor: '#333', borderWidth: 1,
-                    titleColor: '#e8e8e8', bodyColor: '#ccc',
-                    callbacks: {
-                        title: ctx => roll[ctx[0].dataIndex]?.date || '',
-                        label: ctx => ctx.datasetIndex === 0 ? `r = ${ctx.raw.toFixed(4)}` : ''
-                    }
-                }
-            },
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a1a1a', borderColor: '#333', borderWidth: 1, titleColor: '#e8e8e8', bodyColor: '#ccc',
+                callbacks: { title: ctx => roll[ctx[0].dataIndex]?.date||'', label: ctx => ctx.datasetIndex===0 ? `r = ${ctx.raw.toFixed(4)}` : '' } } },
             scales: {
-                x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#999', maxRotation: 45, maxTicksLimit: view === 'daily' ? 15 : 20 } },
-                y: { min: -1, max: 1, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#999', stepSize: 0.5 }, title: { display: true, text: 'Pearson r', color: '#999' } }
+                x: { grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#999',maxRotation:45,maxTicksLimit:15} },
+                y: { min:-1,max:1, grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#999',stepSize:0.5}, title:{display:true,text:'Pearson r',color:'#999'} }
             }
         }
     });
 
     // Verdict
     document.getElementById('verdict').innerHTML = `
-        <h3>📊 Verdict — ${view === 'daily' ? 'Daily' : 'Weekly'} View (r = ${rStr})</h3>
-        <p>
-            <strong>${strength} ${direction} correlation</strong> at the ${view} level. 
-            R² = ${r2Pct}% — VBB explains ${r2Pct}% of Payer variance.
-            ${Math.abs(r) < 0.3 ? ' This is statistically negligible — <strong>VBB is not a reliable predictor of Payer count</strong>.' : ''}
+        <h3>📊 Verdict — ${cfg.metricLabel} ${viewLabel} View (r = ${r.toFixed(3)})</h3>
+        <p><strong>${sl.text} ${dir} correlation</strong> at the ${currentView} level.
+        R² = ${(r2*100).toFixed(1)}% — VBB explains ${(r2*100).toFixed(1)}% of ${cfg.metricLabel} variance.
+        ${Math.abs(r)<0.3 ? ' This is statistically negligible.' : ''}
+        ${Math.abs(r)>=0.7 ? ` <strong>VBB is a reliable directional signal for ${cfg.metricLabel}.</strong>` : ''}
+        ${Math.abs(r)>=0.5 && Math.abs(r)<0.7 ? ` VBB has moderate predictive value for ${cfg.metricLabel}.` : ''}
         </p>
-        <p style="margin-top:8px">
-            The rolling ${rollWindow}-${view === 'daily' ? 'day' : 'week'} correlation oscillates between positive and negative territory, 
-            confirming the relationship is <strong>unstable over time</strong>. VBB captures revenue quality while Payers 
-            captures conversion volume — fundamentally different signals.
-        </p>
+        <p style="margin-top:8px">Scope: ${cfg.scope}. ${data.length} ${currentView==='daily'?'days':'weeks'} of data.</p>
     `;
 
     // Table
+    document.getElementById('table-head').innerHTML = `<tr><th>Date</th><th class="right">${cfg.metricLabel}</th><th class="right">VBB Value</th><th class="right">VBB / ${cfg.metricLabel.split(' ')[0]}</th></tr>`;
     const tbody = document.getElementById('table-body');
     tbody.innerHTML = '';
     data.forEach(d => {
-        const ratio = d.payers > 0 ? d.vbb / d.payers : 0;
+        const ratio = d.val > 0 ? d.vbb / d.val : 0;
         const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${d.date}</td>
-            <td class="right">${d.payers.toFixed(view === 'daily' ? 1 : 0)}</td>
-            <td class="right">$${(d.vbb/1000).toFixed(0)}K</td>
-            <td class="right">${d.payers > 0 ? '$'+(ratio/1000).toFixed(1)+'K' : '—'}</td>
-        `;
+        tr.innerHTML = `<td>${d.date}</td><td class="right">${cfg.valFmt(d.val)}</td><td class="right">${cfg.vbbFmt(d.vbb)}</td><td class="right">${d.val > 0 ? cfg.vbbFmt(ratio) : '—'}</td>`;
         tbody.appendChild(tr);
     });
 }
 
-// Toggle buttons
+// Tab clicks
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentTab = btn.dataset.tab;
+        renderAll();
+    });
+});
+
+// View toggle clicks
 document.querySelectorAll('.toggle-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        renderAll(btn.dataset.view);
+        currentView = btn.dataset.view;
+        renderAll();
     });
 });
 
-renderAll('daily');
+renderAll();
 </script>
 </body>
 </html>
