@@ -685,9 +685,16 @@ function render(cluster) {
     const rows = getFilteredRows(cluster);
     if (!rows.length) return;
 
-    // KPI — last week vs prior
-    const last = rows[rows.length - 1];
-    const prev = rows.length > 1 ? rows[rows.length - 2] : null;
+    // KPI — last FULL week vs prior full week (skip partial current week)
+    // A week is partial if its Wed start + 6 days (Tue end) is in the future
+    function isFullWeek(row) {
+        const ws = new Date(row.week + 'T00:00:00');
+        const we = new Date(ws); we.setDate(we.getDate() + 6); // Tue end
+        return we < new Date();
+    }
+    const fullRows = rows.filter(isFullWeek);
+    const last = fullRows.length ? fullRows[fullRows.length - 1] : rows[rows.length - 1];
+    const prev = fullRows.length > 1 ? fullRows[fullRows.length - 2] : (rows.length > 1 ? rows[rows.length - 2] : null);
 
     const lastRoas = last.spend > 0 ? last.vbb_value / last.spend : 0;
     const prevRoas = prev && prev.spend > 0 ? prev.vbb_value / prev.spend : 0;
@@ -1236,7 +1243,15 @@ function geoFilteredRows(geo) {
 function renderGeoKPIs(geo) {
     const rows = geoFilteredRows(geo);
     if (!rows.length) { document.getElementById('geo-kpi-grid').innerHTML = '<div style="color:#666;padding:12px">No data</div>'; return; }
-    const last = rows[rows.length - 1], prev = rows.length > 1 ? rows[rows.length - 2] : null;
+    // Last FULL week vs prior full week (skip partial current week)
+    function isFullWeekGeo(row) {
+        const ws = new Date(row.week + 'T00:00:00');
+        const we = new Date(ws); we.setDate(we.getDate() + 6);
+        return we < new Date();
+    }
+    const fullRows = rows.filter(isFullWeekGeo);
+    const last = fullRows.length ? fullRows[fullRows.length - 1] : rows[rows.length - 1];
+    const prev = fullRows.length > 1 ? fullRows[fullRows.length - 2] : (rows.length > 1 ? rows[rows.length - 2] : null);
     const lr = last.spend > 0 ? last.vbb_value / last.spend : 0;
     const pr = prev && prev.spend > 0 ? prev.vbb_value / prev.spend : 0;
     const kpis = [
