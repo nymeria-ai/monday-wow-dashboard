@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VBB vs Payers — Correlation Analysis</title>
+<style>
+:root {
+    --bg: #0f0f0f;
+    --surface-0: #1a1a1a;
+    --surface-1: #222;
+    --surface-2: #272727;
+    --border: #333;
+    --text: #e8e8e8;
+    --text-secondary: #999;
+    --green: #4ade80;
+    --red: #f87171;
+    --amber: #fbbf24;
+    --blue: #60a5fa;
+    --purple: #a78bfa;
+    --pink: #f472b6;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+h2 { font-size: 15px; font-weight: 600; margin: 24px 0 12px; color: var(--text-secondary); }
+.subtitle { color: var(--text-secondary); font-size: 12px; margin-bottom: 20px; }
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+}
+.stat-card {
+    background: var(--surface-0);
+    border-radius: 10px;
+    padding: 14px;
+}
+.stat-label { font-size: 10px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.4px; }
+.stat-val { font-size: 24px; font-weight: 700; margin-top: 4px; }
+.stat-sub { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+.chart-block {
+    background: var(--surface-0);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+}
+.chart-block canvas { width: 100% !important; }
+.verdict {
+    background: var(--surface-0);
+    border-radius: 12px;
+    padding: 20px;
+    border-left: 4px solid var(--amber);
+    margin-bottom: 24px;
+}
+.verdict h3 { font-size: 14px; margin-bottom: 8px; }
+.verdict p { color: var(--text-secondary); font-size: 13px; line-height: 1.7; }
+.verdict strong { color: var(--text); }
+.table-wrap {
+    background: var(--surface-0);
+    border-radius: 12px;
+    overflow: hidden;
+}
+table { width: 100%; border-collapse: collapse; }
+th { background: var(--surface-1); text-align: left; padding: 10px 12px; font-size: 11px; text-transform: uppercase; color: var(--text-secondary); }
+td { padding: 8px 12px; border-top: 1px solid var(--border); font-size: 12px; }
+.right { text-align: right; }
+.weak { color: var(--amber); }
+.pos { color: var(--green); }
+.neg { color: var(--red); }
+</style>
+</head>
+<body>
+
+<h1>VBB vs Payers — Correlation Analysis</h1>
+<p class="subtitle">Main Account (3746504118) · May 18 – Aug 16, 2026 · 13 weeks · Source: Google Ads API</p>
+
+<div class="stats-row" id="stats-row"></div>
+
+<div class="chart-block">
+    <h2 style="margin-top:0">Weekly Trend — VBB Value & Payers Count</h2>
+    <div style="height:320px"><canvas id="trend-chart"></canvas></div>
+</div>
+
+<div class="chart-block">
+    <h2 style="margin-top:0">Scatter Plot — VBB vs Payers (with regression line)</h2>
+    <div style="height:340px"><canvas id="scatter-chart"></canvas></div>
+</div>
+
+<div class="chart-block">
+    <h2 style="margin-top:0">Rolling 4-Week Correlation (r) Over Time</h2>
+    <div style="height:260px"><canvas id="rolling-chart"></canvas></div>
+</div>
+
+<div class="verdict" id="verdict"></div>
+
+<h2>Raw Weekly Data</h2>
+<div class="table-wrap">
+    <table id="data-table">
+        <thead>
+            <tr>
+                <th>Week</th>
+                <th class="right">Payers</th>
+                <th class="right">VBB Value</th>
+                <th class="right">VBB / Payer</th>
+            </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+    </table>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+const DATA = [
+    {"week":"2026-05-18","payers":94.0,"vbb":712240},
+    {"week":"2026-05-25","payers":87.0,"vbb":636010},
+    {"week":"2026-06-01","payers":97.0,"vbb":626924},
+    {"week":"2026-06-08","payers":87.0,"vbb":680007},
+    {"week":"2026-06-15","payers":60.0,"vbb":592574},
+    {"week":"2026-06-22","payers":72.0,"vbb":597861},
+    {"week":"2026-06-29","payers":68.0,"vbb":551088},
+    {"week":"2026-07-06","payers":68.0,"vbb":645495},
+    {"week":"2026-07-13","payers":62.0,"vbb":622675},
+    {"week":"2026-07-20","payers":57.0,"vbb":725833},
+    {"week":"2026-07-27","payers":29.0,"vbb":618894},
+    {"week":"2026-08-03","payers":69.0,"vbb":956684},
+    {"week":"2026-08-10","payers":31.0,"vbb":607446}
+];
+
+const ROLLING = [
+    {"week":"2026-06-08","r":-0.0491},
+    {"week":"2026-06-15","r":0.6097},
+    {"week":"2026-06-22","r":0.6533},
+    {"week":"2026-06-29","r":0.8128},
+    {"week":"2026-07-06","r":0.0649},
+    {"week":"2026-07-13","r":-0.2719},
+    {"week":"2026-07-20","r":-0.7872},
+    {"week":"2026-07-27","r":0.2805},
+    {"week":"2026-08-03","r":0.6367},
+    {"week":"2026-08-10","r":0.9301}
+];
+
+const PEARSON_R = 0.1537;
+const R_SQUARED = 0.0236;
+
+const fmtMoney = v => '$' + (v >= 1000 ? (v/1000).toFixed(0) + 'K' : v.toFixed(0));
+const fmtWeek = w => { const d = new Date(w + 'T00:00:00'); return d.toLocaleDateString('en-US', {month:'short', day:'numeric'}); };
+
+// Stats cards
+const avgPayers = DATA.reduce((s,d) => s + d.payers, 0) / DATA.length;
+const avgVBB = DATA.reduce((s,d) => s + d.vbb, 0) / DATA.length;
+const avgRolling = ROLLING.reduce((s,d) => s + Math.abs(d.r), 0) / ROLLING.length;
+
+document.getElementById('stats-row').innerHTML = `
+    <div class="stat-card">
+        <div class="stat-label">Pearson r (overall)</div>
+        <div class="stat-val weak">${PEARSON_R.toFixed(3)}</div>
+        <div class="stat-sub">Very weak positive</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">R² (explained variance)</div>
+        <div class="stat-val weak">${(R_SQUARED * 100).toFixed(1)}%</div>
+        <div class="stat-sub">VBB explains ~2% of Payer variance</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Avg Weekly Payers</div>
+        <div class="stat-val">${avgPayers.toFixed(0)}</div>
+        <div class="stat-sub">Range: ${Math.min(...DATA.map(d=>d.payers))}–${Math.max(...DATA.map(d=>d.payers))}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Avg Weekly VBB</div>
+        <div class="stat-val">${fmtMoney(avgVBB)}</div>
+        <div class="stat-sub">Range: ${fmtMoney(Math.min(...DATA.map(d=>d.vbb)))}–${fmtMoney(Math.max(...DATA.map(d=>d.vbb)))}</div>
+    </div>
+`;
+
+// 1. Trend chart (dual axis)
+const trendCtx = document.getElementById('trend-chart').getContext('2d');
+new Chart(trendCtx, {
+    type: 'line',
+    data: {
+        labels: DATA.map(d => fmtWeek(d.week)),
+        datasets: [
+            {
+                label: 'Payers',
+                data: DATA.map(d => d.payers),
+                borderColor: '#60a5fa',
+                backgroundColor: 'rgba(96,165,250,0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: '#60a5fa',
+                borderWidth: 2.5,
+                yAxisID: 'y1',
+            },
+            {
+                label: 'VBB Value',
+                data: DATA.map(d => d.vbb),
+                borderColor: '#f59e0b',
+                backgroundColor: 'transparent',
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: '#f59e0b',
+                borderWidth: 2.5,
+                yAxisID: 'y2',
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+            legend: { labels: { color: '#999', font: { size: 11 } } },
+            tooltip: {
+                backgroundColor: '#1a1a1a', borderColor: '#333', borderWidth: 1,
+                titleColor: '#e8e8e8', bodyColor: '#ccc',
+                callbacks: {
+                    label: ctx => ctx.dataset.label === 'VBB Value'
+                        ? `VBB: $${(ctx.raw/1000).toFixed(0)}K`
+                        : `Payers: ${ctx.raw.toFixed(0)}`
+                }
+            }
+        },
+        scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#999' } },
+            y1: {
+                position: 'left',
+                title: { display: true, text: 'Payers', color: '#60a5fa' },
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                ticks: { color: '#60a5fa', font: { size: 10 } },
+                beginAtZero: true,
+            },
+            y2: {
+                position: 'right',
+                title: { display: true, text: 'VBB Value', color: '#f59e0b' },
+                grid: { display: false },
+                ticks: { color: '#f59e0b', font: { size: 10 }, callback: v => '$' + (v/1000).toFixed(0) + 'K' },
+                beginAtZero: true,
+            }
+        }
+    }
+});
+
+// 2. Scatter plot with regression
+const scatterCtx = document.getElementById('scatter-chart').getContext('2d');
+
+// Calculate regression line
+const n = DATA.length;
+const meanP = DATA.reduce((s,d) => s + d.payers, 0) / n;
+const meanV = DATA.reduce((s,d) => s + d.vbb, 0) / n;
+const slope = DATA.reduce((s,d) => s + (d.payers - meanP) * (d.vbb - meanV), 0)
+            / DATA.reduce((s,d) => s + (d.payers - meanP) ** 2, 0);
+const intercept = meanV - slope * meanP;
+
+const minP = Math.min(...DATA.map(d => d.payers));
+const maxP = Math.max(...DATA.map(d => d.payers));
+
+new Chart(scatterCtx, {
+    type: 'scatter',
+    data: {
+        datasets: [
+            {
+                label: 'Weekly Data Points',
+                data: DATA.map(d => ({ x: d.payers, y: d.vbb })),
+                backgroundColor: '#60a5fa',
+                pointRadius: 7,
+                pointHoverRadius: 9,
+            },
+            {
+                label: `Regression (r=${PEARSON_R.toFixed(3)})`,
+                data: [
+                    { x: minP - 5, y: slope * (minP - 5) + intercept },
+                    { x: maxP + 5, y: slope * (maxP + 5) + intercept }
+                ],
+                type: 'line',
+                borderColor: '#f8717188',
+                borderWidth: 2,
+                borderDash: [6, 4],
+                pointRadius: 0,
+                fill: false,
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { labels: { color: '#999', font: { size: 11 } } },
+            tooltip: {
+                backgroundColor: '#1a1a1a', borderColor: '#333', borderWidth: 1,
+                titleColor: '#e8e8e8', bodyColor: '#ccc',
+                callbacks: {
+                    label: ctx => ctx.datasetIndex === 0
+                        ? `Payers: ${ctx.raw.x.toFixed(0)}, VBB: $${(ctx.raw.y/1000).toFixed(0)}K`
+                        : ''
+                }
+            }
+        },
+        scales: {
+            x: {
+                title: { display: true, text: 'Payers (weekly count)', color: '#999' },
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                ticks: { color: '#999' },
+            },
+            y: {
+                title: { display: true, text: 'VBB Value ($)', color: '#999' },
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                ticks: { color: '#999', callback: v => '$' + (v/1000).toFixed(0) + 'K' },
+            }
+        }
+    }
+});
+
+// 3. Rolling correlation chart
+const rollingCtx = document.getElementById('rolling-chart').getContext('2d');
+new Chart(rollingCtx, {
+    type: 'line',
+    data: {
+        labels: ROLLING.map(d => fmtWeek(d.week)),
+        datasets: [
+            {
+                label: 'Rolling 4-week r',
+                data: ROLLING.map(d => d.r),
+                borderColor: '#a78bfa',
+                backgroundColor: ROLLING.map(d => d.r >= 0 ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)'),
+                fill: true,
+                tension: 0.3,
+                pointRadius: 5,
+                pointBackgroundColor: ROLLING.map(d => d.r >= 0 ? '#4ade80' : '#f87171'),
+                borderWidth: 2.5,
+            },
+            {
+                label: 'Zero line',
+                data: ROLLING.map(() => 0),
+                borderColor: 'rgba(255,255,255,0.15)',
+                borderWidth: 1,
+                borderDash: [4, 4],
+                pointRadius: 0,
+                fill: false,
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: '#1a1a1a', borderColor: '#333', borderWidth: 1,
+                titleColor: '#e8e8e8', bodyColor: '#ccc',
+                callbacks: { label: ctx => ctx.datasetIndex === 0 ? `r = ${ctx.raw.toFixed(4)}` : '' }
+            }
+        },
+        scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#999' } },
+            y: {
+                min: -1, max: 1,
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                ticks: { color: '#999', stepSize: 0.5 },
+                title: { display: true, text: 'Pearson r', color: '#999' },
+            }
+        }
+    }
+});
+
+// Verdict
+document.getElementById('verdict').innerHTML = `
+    <h3>📊 Verdict: Is VBB a good predictor of Payers?</h3>
+    <p>
+        <strong>Short answer: No.</strong> The overall Pearson correlation is <strong>r = ${PEARSON_R.toFixed(3)}</strong> 
+        (R² = ${(R_SQUARED*100).toFixed(1)}%), meaning VBB explains only ~2% of the variance in Payer count. 
+        This is statistically negligible.
+    </p>
+    <p style="margin-top:8px">
+        <strong>The rolling correlation tells a more nuanced story:</strong> it swings wildly from 
+        <strong>r = −0.79</strong> (late July — inverse!) to <strong>r = +0.93</strong> (early Aug — strong positive). 
+        This instability means the relationship is not stable — it flips direction frequently, likely driven by 
+        external factors (budget shifts, campaign launches, seasonality, conversion delays).
+    </p>
+    <p style="margin-top:8px">
+        <strong>Key observation:</strong> The week of Jul 27 is a clear outlier — only 29 payers while VBB was $619K. 
+        Similarly, Aug 3 had 69 payers but VBB spiked to $957K (highest in the period). This suggests VBB value 
+        is driven by high-value users that don't necessarily correlate with payer volume.
+    </p>
+    <p style="margin-top:8px">
+        <strong>Bottom line:</strong> VBB captures <em>value quality</em> (revenue potential) while Payers captures 
+        <em>conversion quantity</em>. They measure fundamentally different things. A few high-LTV payers can drive 
+        massive VBB without high payer count. Do not use VBB as a proxy for payer volume.
+    </p>
+`;
+
+// Table
+const tbody = document.getElementById('table-body');
+DATA.forEach(d => {
+    const ratio = d.payers > 0 ? d.vbb / d.payers : 0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td>${fmtWeek(d.week)}</td>
+        <td class="right">${d.payers.toFixed(0)}</td>
+        <td class="right">$${(d.vbb/1000).toFixed(0)}K</td>
+        <td class="right">$${(ratio/1000).toFixed(1)}K</td>
+    `;
+    tbody.appendChild(tr);
+});
+</script>
+</body>
+</html>
