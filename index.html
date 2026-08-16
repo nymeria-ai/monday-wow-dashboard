@@ -227,9 +227,27 @@ td {
 }
 .comp-timeframe {
     display: flex;
-    gap: 4px;
+    gap: 8px;
+    align-items: center;
 }
-.tf-btn {
+.comp-date-input {
+    background: var(--surface-1);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-family: inherit;
+    outline: none;
+}
+.comp-date-input:focus {
+    border-color: var(--green);
+}
+.comp-date-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+.tf-btn-UNUSED {
     background: var(--surface-2);
     border: 1px solid var(--border);
     color: var(--text-secondary);
@@ -382,7 +400,12 @@ td {
 <div class="comp-controls">
     <div class="comp-control-group">
         <span class="ctrl-label">Timeframe</span>
-        <div class="comp-timeframe" id="comp-timeframe"></div>
+        <div class="comp-timeframe" id="comp-timeframe">
+            <span class="comp-date-label">From</span>
+            <input type="date" id="comp-date-from" class="comp-date-input">
+            <span class="comp-date-label">To</span>
+            <input type="date" id="comp-date-to" class="comp-date-input">
+        </div>
     </div>
     <div class="comp-control-group" style="flex:1;min-width:300px">
         <span class="ctrl-label">Clusters</span>
@@ -771,14 +794,24 @@ const COMP_DEFAULTS = new Set(['Project', 'General', 'Task', 'Gantt', 'Marketing
 // Derive all available weeks sorted
 const ALL_WEEKS = [...new Set(Object.values(DATA).flatMap(rows => rows.map(r => r.week)))].sort();
 
-const TIMEFRAMES = [
-    { id: '1w', label: 'Last week', weeks: 1 },
-    { id: '2w', label: 'Last 2 weeks', weeks: 2 },
-    { id: '4w', label: 'Last 4 weeks', weeks: 4 },
-    { id: 'all', label: 'All time', weeks: ALL_WEEKS.length },
-];
+// Compute default date range: last 2 full weeks ending on today()-5
+// Weeks start on Friday, so "end" = most recent Friday <= today-5
+const compToday = new Date();
+const compCutoff = new Date(compToday);
+compCutoff.setDate(compCutoff.getDate() - 5);
+// Find last Friday <= cutoff
+const compCutoffDay = compCutoff.getDay(); // 0=Sun..6=Sat
+const compDaysToFri = (compCutoffDay + 2) % 7; // days since last Friday
+const compEndFri = new Date(compCutoff);
+compEndFri.setDate(compEndFri.getDate() - compDaysToFri);
+// Start = 2 weeks before that Friday
+const compStartFri = new Date(compEndFri);
+compStartFri.setDate(compStartFri.getDate() - 14);
 
-let compTimeframe = '2w';
+const compDateFromEl = document.getElementById('comp-date-from');
+const compDateToEl = document.getElementById('comp-date-to');
+compDateFromEl.value = compStartFri.toISOString().slice(0, 10);
+compDateToEl.value = compCutoff.toISOString().slice(0, 10);
 let compSortKey = 'spend';
 let compSortDesc = true;
 const compActiveClusters = new Set(COMP_DEFAULTS);
@@ -805,21 +838,9 @@ document.getElementById('comp-thead-row').addEventListener('click', (e) => {
     renderComparison();
 });
 
-// Build timeframe buttons
-const tfContainer = document.getElementById('comp-timeframe');
-TIMEFRAMES.forEach(tf => {
-    const btn = document.createElement('button');
-    btn.className = 'tf-btn' + (tf.id === compTimeframe ? ' active' : '');
-    btn.textContent = tf.label;
-    btn.dataset.id = tf.id;
-    btn.addEventListener('click', () => {
-        compTimeframe = tf.id;
-        tfContainer.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        renderComparison();
-    });
-    tfContainer.appendChild(btn);
-});
+// Date picker change handlers (independent from main table)
+compDateFromEl.addEventListener('change', () => renderComparison());
+compDateToEl.addEventListener('change', () => renderComparison());
 
 // Build cluster pills
 const ccContainer = document.getElementById('comp-clusters');
@@ -871,9 +892,9 @@ document.getElementById('comp-select-agents').addEventListener('click', () => ap
 document.getElementById('comp-select-geo').addEventListener('click', () => applyQuickSelect(COMP_GEO));
 
 function getCompWeeks() {
-    const tf = TIMEFRAMES.find(t => t.id === compTimeframe);
-    const n = tf ? tf.weeks : 2;
-    return ALL_WEEKS.slice(-n);
+    const from = compDateFromEl.value;
+    const to = compDateToEl.value;
+    return ALL_WEEKS.filter(w => w >= from && w <= to);
 }
 
 function aggregateCluster(cluster, weeks) {
