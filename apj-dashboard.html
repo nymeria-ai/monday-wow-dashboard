@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEM APJ Activity Dashboard</title>
+<style>
+:root {
+    --bg: #0f0f0f;
+    --surface-0: #1a1a1a;
+    --surface-1: #222;
+    --surface-2: #272727;
+    --border: #333;
+    --text: #e8e8e8;
+    --text-secondary: #999;
+    --green: #1D9E75;
+    --red: #D85A30;
+    --amber: #eda100;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+.subtitle { color: var(--text-secondary); font-size: 12px; margin-bottom: 20px; }
+.filter-bar { margin-bottom: 24px; }
+.filter-bar label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px;
+    color: var(--text-secondary); margin-right: 8px;
+}
+.filter-bar select {
+    background: var(--surface-1); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 12px; font-size: 13px; font-family: inherit;
+    cursor: pointer; min-width: 200px; outline: none;
+}
+.filter-bar select:focus { border-color: var(--green); }
+.brand-toggle { display: flex; gap: 0; }
+.brand-btn {
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text-secondary); font-size: 12px; font-family: inherit;
+    padding: 7px 16px; cursor: pointer; transition: all 0.15s;
+}
+.brand-btn:first-child { border-radius: 6px 0 0 6px; }
+.brand-btn:last-child { border-radius: 0 6px 6px 0; border-left: none; }
+.brand-btn.active {
+    border-color: var(--green); color: var(--green);
+    background: rgba(29, 158, 117, 0.12);
+}
+.kpi-block { background: var(--surface-0); border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.kpi-card { background: var(--surface-2); border-radius: 8px; padding: 12px; }
+.kpi-label { font-size: 10px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.3px; margin-bottom: 4px; }
+.kpi-val { font-size: 22px; font-weight: 600; }
+.kpi-delta { font-size: 11px; margin-top: 2px; }
+.up { color: #4ade80; font-weight: 500; }
+.dn { color: #f87171; font-weight: 500; }
+.neu { color: #888; }
+.table-wrap { border: 0.5px solid var(--border); border-radius: 12px; overflow: hidden; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th {
+    text-align: left; font-size: 10px; text-transform: uppercase; color: var(--text-secondary);
+    padding: 10px 8px; border-bottom: 1px solid var(--border); font-weight: 500;
+    letter-spacing: 0.3px; white-space: nowrap; position: sticky; top: 0; background: var(--surface-0);
+}
+td { padding: 8px 8px; border-bottom: 1px solid #1a1a1a; white-space: nowrap; }
+.tr-alt { background: var(--surface-1); }
+.right { text-align: right; }
+.week-cell { font-weight: 500; color: var(--text); }
+@media (max-width: 900px) {
+    body { padding: 12px; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .table-wrap { overflow-x: auto; }
+    h1 { font-size: 17px; }
+}
+@media (max-width: 480px) {
+    .kpi-grid { grid-template-columns: 1fr; }
+    .filter-bar select { width: 100%; }
+}
+.chart-section { background: var(--surface-0); border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+.chart-toggles { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.chart-toggle {
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text-secondary);
+    font-size: 11px; font-family: inherit; padding: 5px 12px; border-radius: 16px;
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.chart-toggle:hover { border-color: #555; color: var(--text); }
+.chart-toggle.active { border-color: var(--green); color: var(--green); background: rgba(29, 158, 117, 0.12); }
+.chart-toggle .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+#chart-canvas { width: 100% !important; max-height: 320px; }
+/* ── Geo Comparison Section ── */
+.section-divider { border: none; border-top: 1px solid var(--border); margin: 40px 0 32px; }
+.comp-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+.comp-header h2 { font-size: 18px; font-weight: 600; }
+.comp-subtitle { color: var(--text-secondary); font-size: 12px; margin-bottom: 16px; }
+.comp-controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; margin-bottom: 20px; }
+.comp-control-group { display: flex; flex-direction: column; gap: 6px; }
+.comp-control-group .ctrl-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-secondary); }
+.comp-timeframe { display: flex; gap: 8px; align-items: center; }
+.comp-date-input {
+    background: var(--surface-1); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 10px; font-size: 12px; font-family: inherit; outline: none;
+}
+.comp-date-input:focus { border-color: var(--green); }
+.comp-date-label { font-size: 11px; color: var(--text-secondary); }
+.comp-clusters { display: flex; flex-wrap: wrap; gap: 5px; }
+.cc-pill {
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text-secondary);
+    font-size: 11px; font-family: inherit; padding: 4px 10px; border-radius: 14px;
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.cc-pill:hover { border-color: #555; color: var(--text); }
+.cc-pill.active { border-color: #6366f1; color: #a5b4fc; background: rgba(99, 102, 241, 0.12); }
+.comp-table-wrap { border: 0.5px solid var(--border); border-radius: 12px; overflow-x: auto; }
+.comp-table-wrap table th { background: var(--surface-0); }
+.comp-table-wrap td.cluster-name { font-weight: 500; color: var(--text); min-width: 140px; }
+.comp-table-wrap th.sortable { cursor: pointer; user-select: none; transition: color 0.15s; }
+.comp-table-wrap th.sortable:hover { color: var(--text); }
+.comp-table-wrap th.sortable.sort-active { color: var(--green); }
+.sort-arrow { font-size: 9px; margin-left: 3px; }
+.select-actions { display: flex; gap: 6px; margin-top: 2px; }
+.select-action {
+    background: none; border: none; color: var(--green); font-size: 10px; font-family: inherit;
+    cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 2px;
+}
+.select-action:hover { color: #4ade80; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<h1>🌏 SEM APJ Activity Dashboard</h1>
+<p class="subtitle">Wed–Tue weeks · Search campaigns across 6 accounts · APJ matched locations</p>
+
+<div class="filter-bar" style="display:flex;flex-wrap:wrap;align-items:center;gap:16px">
+    <div>
+        <label>Type</label>
+        <div class="brand-toggle">
+            <button class="brand-btn active" id="btn-nonbrand" data-type="nonbrand">Non-Brand</button>
+            <button class="brand-btn" id="btn-brand" data-type="brand">Brand</button>
+        </div>
+    </div>
+    <div>
+        <label for="geo-select">Geo</label>
+        <select id="geo-select"></select>
+    </div>
+    <div>
+        <label for="date-from">From</label>
+        <input type="date" id="date-from" style="background:var(--surface-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:13px;font-family:inherit;outline:none">
+    </div>
+    <div>
+        <label for="date-to">To</label>
+        <input type="date" id="date-to" style="background:var(--surface-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:13px;font-family:inherit;outline:none">
+    </div>
+</div>
+
+<div id="kpi-container" class="kpi-block">
+    <div id="kpi-grid" class="kpi-grid"></div>
+</div>
+
+<div class="chart-section">
+    <div class="chart-toggles" id="chart-toggles"></div>
+    <canvas id="chart-canvas"></canvas>
+</div>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Week</th>
+                <th class="right">Spend</th>
+                <th class="right">Δ</th>
+                <th class="right">Impressions</th>
+                <th class="right">Δ</th>
+                <th class="right">Signups</th>
+                <th class="right">Δ</th>
+                <th class="right">CPS</th>
+                <th class="right">Δ</th>
+                <th class="right">Agents Created</th>
+                <th class="right">CPAC</th>
+                <th class="right">Δ</th>
+                <th class="right">Payers</th>
+                <th class="right">CAC</th>
+                <th class="right">VBB ROAS</th>
+                <th class="right">Δ</th>
+            </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+    </table>
+</div>
+
+<hr class="section-divider">
+
+<div class="comp-header">
+    <h2>🔍 Geo Comparison</h2>
+</div>
+<p class="comp-subtitle">Aggregated metrics across selected geos for a chosen timeframe</p>
+
+<div class="comp-controls">
+    <div class="comp-control-group">
+        <span class="ctrl-label">Timeframe</span>
+        <div class="comp-timeframe" id="comp-timeframe">
+            <span class="comp-date-label">From</span>
+            <input type="date" id="comp-date-from" class="comp-date-input">
+            <span class="comp-date-label">To</span>
+            <input type="date" id="comp-date-to" class="comp-date-input">
+        </div>
+    </div>
+    <div class="comp-control-group" style="flex:1;min-width:300px">
+        <span class="ctrl-label">Geos</span>
+        <div class="comp-clusters" id="comp-geos"></div>
+        <div class="select-actions">
+            <button class="select-action" id="comp-select-all">Select all</button>
+            <button class="select-action" id="comp-select-none">Clear</button>
+            <button class="select-action" id="comp-select-east-asia">East Asia</button>
+            <button class="select-action" id="comp-select-southeast-asia">Southeast Asia</button>
+            <button class="select-action" id="comp-select-south-asia">South Asia</button>
+            <button class="select-action" id="comp-select-oceania">Oceania</button>
+        </div>
+    </div>
+</div>
+
+<div class="comp-table-wrap">
+    <table>
+        <thead>
+            <tr id="comp-thead-row">
+                <th>Geo</th>
+                <th class="right sortable sort-active" data-sort="spend">Spend <span class="sort-arrow">▼</span></th>
+                <th class="right sortable" data-sort="imp">Impressions</th>
+                <th class="right sortable" data-sort="cpc">Avg CPC</th>
+                <th class="right sortable" data-sort="signups">Hard Signups</th>
+                <th class="right sortable" data-sort="cr">CR to SU</th>
+                <th class="right sortable" data-sort="cps">CPS</th>
+                <th class="right sortable" data-sort="agents_created">Agents Created</th>
+                <th class="right sortable" data-sort="cpac">CPAC</th>
+                <th class="right sortable" data-sort="payers">Payers</th>
+                <th class="right sortable" data-sort="cac">CAC</th>
+                <th class="right sortable" data-sort="roas">VBB ROAS</th>
+            </tr>
+        </thead>
+        <tbody id="comp-table-body"></tbody>
+    </table>
+</div>
+
+<script>
+const DATA_BRAND = {};
+const DATA_NONBRAND = {};
+
+let currentData = DATA_NONBRAND;
+let currentBrandKey = 'nonbrand';
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function weekLabel(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    let end = new Date(d);
+    end.setDate(end.getDate() + 6);
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(0,0,0,0);
+    if (end > yesterday) end = yesterday;
+    const mStart = MONTHS[d.getMonth()];
+    const mEnd = MONTHS[end.getMonth()];
+    if (mStart === mEnd) return mStart + ' ' + d.getDate() + '–' + end.getDate();
+    return mStart + ' ' + d.getDate() + '–' + mEnd + ' ' + end.getDate();
+}
+
+function fmt(n, prefix) {
+    if (n == null || isNaN(n)) return '—';
+    const s = Math.abs(n) >= 1000 ? Math.round(n).toLocaleString('en-US') : n % 1 === 0 ? n.toLocaleString('en-US') : n.toFixed(1);
+    return (prefix || '') + s;
+}
+function fmtMoney(n) { if (n == null || isNaN(n)) return '—'; return '$' + Math.round(n).toLocaleString('en-US'); }
+function fmtRoas(n) { if (n == null || isNaN(n) || !isFinite(n)) return '—'; return (n * 100).toFixed(0) + '%'; }
+
+function delta(cur, prev) {
+    if (!prev || prev === 0) return { pct: null };
+    return { pct: ((cur - prev) / Math.abs(prev)) * 100 };
+}
+function deltaHtml(pct, invert) {
+    if (pct == null) return '<span class="neu">—</span>';
+    const abs = Math.abs(pct).toFixed(1);
+    const isUp = pct > 0;
+    let cls = invert ? (isUp ? 'dn' : 'up') : (isUp ? 'up' : 'dn');
+    if (Math.abs(pct) < 0.05) return '<span class="neu">0.0%</span>';
+    const arrow = isUp ? '▲' : '▼';
+    return `<span class="${cls}">${arrow} ${abs}%</span>`;
+}
+
+function getRows(geo) { return currentData[geo] || []; }
+function getFilteredRows(geo) {
+    let rows = getRows(geo);
+    const fromVal = document.getElementById('date-from').value;
+    const toVal = document.getElementById('date-to').value;
+    if (fromVal) rows = rows.filter(r => r.week >= fromVal);
+    if (toVal) rows = rows.filter(r => r.week <= toVal);
+    return rows;
+}
+
+function render(geo) {
+    const rows = getFilteredRows(geo);
+    if (!rows.length) {
+        document.getElementById('kpi-grid').innerHTML = '<div style="color:#666;padding:12px">No data available</div>';
+        document.getElementById('table-body').innerHTML = '';
+        return;
+    }
+    const last = rows[rows.length - 1];
+    const prev = rows.length > 1 ? rows[rows.length - 2] : null;
+    const lastRoas = last.spend > 0 ? last.vbb_value / last.spend : 0;
+    const prevRoas = prev && prev.spend > 0 ? prev.vbb_value / prev.spend : 0;
+    const kpis = [
+        { label: 'Spend', val: fmtMoney(last.spend), d: delta(last.spend, prev?.spend) },
+        { label: 'Impressions', val: fmt(last.imp), d: delta(last.imp, prev?.imp) },
+        { label: 'Hard Signups', val: fmt(last.signups), d: delta(last.signups, prev?.signups) },
+        { label: 'VBB ROAS', val: fmtRoas(lastRoas), d: delta(lastRoas, prevRoas) },
+    ];
+    document.getElementById('kpi-grid').innerHTML = kpis.map(k => {
+        const dHtml = k.d.pct != null ? deltaHtml(k.d.pct, false) : '<span class="neu">—</span>';
+        return `<div class="kpi-card"><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.val}</div><div class="kpi-delta">${dHtml} vs prior week</div></div>`;
+    }).join('');
+
+    let html = '';
+    rows.forEach((r, i) => {
+        const prev = i > 0 ? rows[i - 1] : null;
+        const roas = r.spend > 0 ? r.vbb_value / r.spend : 0;
+        const prevRoas = prev && prev.spend > 0 ? prev.vbb_value / prev.spend : 0;
+        const cps = r.signups > 0 ? r.spend / r.signups : 0;
+        const prevCps = prev && prev.signups > 0 ? prev.spend / prev.signups : 0;
+        const ac = r.agents_created || 0;
+        const prevAc = prev ? (prev.agents_created || 0) : 0;
+        const cpac = ac > 0 ? r.spend / ac : 0;
+        const prevCpac = prevAc > 0 && prev ? prev.spend / prevAc : 0;
+        const cac = r.payers > 0 ? r.spend / r.payers : 0;
+        const spendD = delta(r.spend, prev?.spend);
+        const impD = delta(r.imp, prev?.imp);
+        const suD = delta(r.signups, prev?.signups);
+        const roasD = delta(roas, prevRoas);
+        const cpsD = delta(cps, prevCps);
+        const cpacD = delta(cpac, prevCpac);
+        const altClass = i % 2 === 1 ? ' class="tr-alt"' : '';
+        html += `<tr${altClass}>
+            <td class="week-cell">${weekLabel(r.week)}</td>
+            <td class="right">${fmtMoney(r.spend)}</td>
+            <td class="right">${deltaHtml(spendD.pct, false)}</td>
+            <td class="right">${fmt(r.imp)}</td>
+            <td class="right">${deltaHtml(impD.pct, false)}</td>
+            <td class="right">${fmt(r.signups)}</td>
+            <td class="right">${deltaHtml(suD.pct, false)}</td>
+            <td class="right">${r.signups > 0 ? fmtMoney(cps) : '—'}</td>
+            <td class="right">${i > 0 && r.signups > 0 && prevCps > 0 ? deltaHtml(cpsD.pct, true) : ''}</td>
+            <td class="right">${fmt(ac)}</td>
+            <td class="right">${ac > 0 ? fmtMoney(cpac) : '—'}</td>
+            <td class="right">${i > 0 && ac > 0 && prevCpac > 0 ? deltaHtml(cpacD.pct, true) : ''}</td>
+            <td class="right">${fmt(r.payers)}</td>
+            <td class="right">${r.payers > 0 ? fmtMoney(cac) : '—'}</td>
+            <td class="right">${r.spend > 0 ? fmtRoas(roas) : '—'}</td>
+            <td class="right">${deltaHtml(roasD.pct, false)}</td>
+        </tr>`;
+    });
+    document.getElementById('table-body').innerHTML = html;
+}
+
+// ── Chart ──
+const METRICS = [
+    { id: 'spend',   label: 'Spend',          type: 'bar',  color: '#6366f1', fmt: v => '$' + (v/1000).toFixed(0) + 'K', valueFn: r => r.spend },
+    { id: 'imp',     label: 'Impressions',     type: 'bar',  color: '#38bdf8', fmt: v => (v/1000).toFixed(0) + 'K',       valueFn: r => r.imp },
+    { id: 'cpc',     label: 'Avg CPC',         type: 'line', color: '#f59e0b', fmt: v => '$' + v.toFixed(2),              valueFn: r => r.clicks > 0 ? r.spend / r.clicks : 0 },
+    { id: 'signups', label: 'Hard Signups',     type: 'bar',  color: '#4ade80', fmt: v => v.toFixed(0),                    valueFn: r => r.signups },
+    { id: 'cr',      label: 'CR to SU',        type: 'line', color: '#a78bfa', fmt: v => (v*100).toFixed(1) + '%',        valueFn: r => r.clicks > 0 ? r.signups / r.clicks : 0 },
+    { id: 'cps',     label: 'CPS Hard Signup', type: 'line', color: '#f87171', fmt: v => '$' + v.toFixed(0),              valueFn: r => r.signups > 0 ? r.spend / r.signups : 0 },
+    { id: 'payers',  label: 'Payers',          type: 'line', color: '#2dd4bf', fmt: v => v.toFixed(0),                    valueFn: r => r.payers },
+    { id: 'roas',    label: 'VBB ROAS',        type: 'line', color: '#fb923c', fmt: v => (v * 100).toFixed(0) + '%',       valueFn: r => r.spend > 0 ? r.vbb_value / r.spend : 0 },
+    { id: 'agents',  label: 'Agents Created',  type: 'bar',  color: '#e879f9', fmt: v => v.toFixed(0),                    valueFn: r => r.agents_created || 0 },
+];
+const activeMetrics = new Set(['spend', 'cps']);
+let chartInstance = null;
+
+const toggleContainer = document.getElementById('chart-toggles');
+METRICS.forEach(m => {
+    const btn = document.createElement('button');
+    btn.className = 'chart-toggle' + (activeMetrics.has(m.id) ? ' active' : '');
+    btn.dataset.id = m.id;
+    btn.innerHTML = `<span class="dot" style="background:${m.color}"></span>${m.label}`;
+    btn.addEventListener('click', () => {
+        if (activeMetrics.has(m.id)) { activeMetrics.delete(m.id); btn.classList.remove('active'); }
+        else { activeMetrics.add(m.id); btn.classList.add('active'); }
+        renderChart(document.getElementById('geo-select').value);
+    });
+    toggleContainer.appendChild(btn);
+});
+
+function renderChart(geo) {
+    const rows = getFilteredRows(geo);
+    if (!rows.length) { if (chartInstance) chartInstance.destroy(); return; }
+    const labels = rows.map(r => weekLabel(r.week));
+    const active = METRICS.filter(m => activeMetrics.has(m.id));
+    const barMetrics = active.filter(m => m.type === 'bar');
+    const datasets = [];
+    const scales = { x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#999', font: { size: 11 } } } };
+    active.forEach((m, idx) => {
+        const axisId = 'y_' + m.id;
+        const data = rows.map(r => m.valueFn(r));
+        const isBar = m.type === 'bar';
+        datasets.push({
+            label: m.label, data, type: m.type, yAxisID: axisId,
+            backgroundColor: isBar ? m.color + '99' : 'transparent', borderColor: m.color,
+            borderWidth: isBar ? 0 : 2.5, pointRadius: 3, pointBackgroundColor: m.color,
+            tension: 0.3, order: isBar ? 2 : 1,
+            barPercentage: barMetrics.length > 1 ? 0.5 : 0.6,
+            categoryPercentage: barMetrics.length > 1 ? 0.8 : 0.7,
+        });
+        scales[axisId] = {
+            type: 'linear', position: isBar ? 'left' : 'right',
+            display: active.length <= 3, grid: { display: idx === 0, color: 'rgba(255,255,255,0.04)' },
+            ticks: { color: m.color, font: { size: 10 }, callback: v => m.fmt(v), maxTicksLimit: 5 },
+            beginAtZero: true,
+        };
+    });
+    if (chartInstance) chartInstance.destroy();
+    const ctx = document.getElementById('chart-canvas').getContext('2d');
+    chartInstance = new Chart(ctx, {
+        type: 'bar', data: { labels, datasets },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1a1a1a', borderColor: '#333', borderWidth: 1,
+                    titleColor: '#e8e8e8', bodyColor: '#ccc', padding: 10,
+                    callbacks: { label: ctx => { const m = METRICS.find(x => x.label === ctx.dataset.label); return ctx.dataset.label + ': ' + (m ? m.fmt(ctx.raw) : ctx.raw); } }
+                }
+            },
+            scales,
+        }
+    });
+    document.getElementById('chart-canvas').parentElement.style.height = '320px';
+    document.getElementById('chart-canvas').style.height = '320px';
+}
+
+// ── Geo dropdown ──
+const select = document.getElementById('geo-select');
+function rebuildGeoDropdown() {
+    const prev = select.value;
+    select.innerHTML = '';
+    const keys = Object.keys(currentData).sort((a, b) => {
+        if (a === 'All APJ') return -1;
+        if (b === 'All APJ') return 1;
+        return a.localeCompare(b);
+    });
+    keys.forEach(k => {
+        const opt = document.createElement('option');
+        opt.value = k; opt.textContent = k;
+        if (k === 'All APJ') opt.selected = true;
+        select.appendChild(opt);
+    });
+    // Try to keep previous selection
+    if (prev && keys.includes(prev)) select.value = prev;
+    else if (keys.includes('All APJ')) select.value = 'All APJ';
+    else if (keys.length) select.value = keys[0];
+}
+
+select.addEventListener('change', () => { render(select.value); renderChart(select.value); });
+
+// ── Brand toggle ──
+document.querySelectorAll('.brand-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.brand-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentBrandKey = btn.dataset.type;
+        currentData = currentBrandKey === 'brand' ? DATA_BRAND : DATA_NONBRAND;
+        rebuildGeoDropdown();
+        render(select.value);
+        renderChart(select.value);
+        rebuildCompGeos();
+        renderComparison();
+    });
+});
+
+// ── Date filter defaults ──
+function initDateFilters() {
+    const allWeeks = [...new Set(Object.values(currentData).flatMap(rows => rows.map(r => r.week)))].sort();
+    if (allWeeks.length > 6) document.getElementById('date-from').value = allWeeks[allWeeks.length - 6];
+    else if (allWeeks.length > 0) document.getElementById('date-from').value = allWeeks[0];
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+    document.getElementById('date-to').value = yesterday.toISOString().slice(0, 10);
+}
+
+document.getElementById('date-from').addEventListener('change', () => { render(select.value); renderChart(select.value); });
+document.getElementById('date-to').addEventListener('change', () => { render(select.value); renderChart(select.value); });
+
+// ══════════════════════════════════════════
+// Geo Comparison — fully independent
+// ══════════════════════════════════════════
+
+const COMP_EXCLUDE = new Set(['All APJ']);
+const COMP_DEFAULTS = new Set(['Australia', 'India', 'Japan', 'South Korea', 'Singapore', 'Indonesia']);
+
+// Region quick-selects
+const REGION_EAST_ASIA = new Set(['China', 'Japan', 'South Korea', 'Taiwan', 'Mongolia', 'North Korea']);
+const REGION_SOUTHEAST_ASIA = new Set(['Brunei', 'Cambodia', 'Indonesia', 'Laos', 'Malaysia', 'Myanmar', 'Philippines', 'Singapore', 'Thailand', 'Timor-Leste', 'Vietnam']);
+const REGION_SOUTH_ASIA = new Set(['Bangladesh', 'Bhutan', 'India', 'Maldives', 'Nepal', 'Pakistan', 'Sri Lanka']);
+const REGION_OCEANIA = new Set(['Australia', 'New Zealand', 'Pacific Islands']);
+
+let compGeos = [];
+const compActiveGeos = new Set(COMP_DEFAULTS);
+let compSortKey = 'spend';
+let compSortDesc = true;
+
+// Comp date defaults
+const compToday = new Date();
+const compCutoff = new Date(compToday);
+compCutoff.setDate(compCutoff.getDate() - 5);
+const compCutoffDay = compCutoff.getDay();
+const compDaysToFri = (compCutoffDay + 2) % 7;
+const compEndFri = new Date(compCutoff);
+compEndFri.setDate(compEndFri.getDate() - compDaysToFri);
+const compStartFri = new Date(compEndFri);
+compStartFri.setDate(compStartFri.getDate() - 14);
+
+const compDateFromEl = document.getElementById('comp-date-from');
+const compDateToEl = document.getElementById('comp-date-to');
+compDateFromEl.value = compStartFri.toISOString().slice(0, 10);
+compDateToEl.value = compCutoff.toISOString().slice(0, 10);
+
+compDateFromEl.addEventListener('change', () => renderComparison());
+compDateToEl.addEventListener('change', () => renderComparison());
+
+// Sort
+document.getElementById('comp-thead-row').addEventListener('click', (e) => {
+    const th = e.target.closest('th.sortable');
+    if (!th) return;
+    const key = th.dataset.sort;
+    if (compSortKey === key) compSortDesc = !compSortDesc;
+    else { compSortKey = key; compSortDesc = true; }
+    document.querySelectorAll('#comp-thead-row th.sortable').forEach(h => {
+        h.classList.remove('sort-active');
+        const arrow = h.querySelector('.sort-arrow'); if (arrow) arrow.remove();
+    });
+    th.classList.add('sort-active');
+    th.insertAdjacentHTML('beforeend', `<span class="sort-arrow">${compSortDesc ? '\u25BC' : '\u25B2'}</span>`);
+    renderComparison();
+});
+
+const ccContainer = document.getElementById('comp-geos');
+function rebuildCompGeos() {
+    ccContainer.innerHTML = '';
+    compGeos = Object.keys(currentData).filter(k => !COMP_EXCLUDE.has(k)).sort();
+    compGeos.forEach(c => {
+        const pill = document.createElement('button');
+        pill.className = 'cc-pill' + (compActiveGeos.has(c) ? ' active' : '');
+        pill.textContent = c;
+        pill.dataset.cluster = c;
+        pill.addEventListener('click', () => {
+            if (compActiveGeos.has(c)) { compActiveGeos.delete(c); pill.classList.remove('active'); }
+            else { compActiveGeos.add(c); pill.classList.add('active'); }
+            renderComparison();
+        });
+        ccContainer.appendChild(pill);
+    });
+}
+
+document.getElementById('comp-select-all').addEventListener('click', () => {
+    compGeos.forEach(c => compActiveGeos.add(c));
+    ccContainer.querySelectorAll('.cc-pill').forEach(p => p.classList.add('active'));
+    renderComparison();
+});
+document.getElementById('comp-select-none').addEventListener('click', () => {
+    compActiveGeos.clear();
+    ccContainer.querySelectorAll('.cc-pill').forEach(p => p.classList.remove('active'));
+    renderComparison();
+});
+
+function applyQuickSelect(preset) {
+    compActiveGeos.clear();
+    preset.forEach(c => { if (compGeos.includes(c)) compActiveGeos.add(c); });
+    ccContainer.querySelectorAll('.cc-pill').forEach(p => {
+        p.classList.toggle('active', compActiveGeos.has(p.dataset.cluster));
+    });
+    renderComparison();
+}
+
+document.getElementById('comp-select-east-asia').addEventListener('click', () => applyQuickSelect(REGION_EAST_ASIA));
+document.getElementById('comp-select-southeast-asia').addEventListener('click', () => applyQuickSelect(REGION_SOUTHEAST_ASIA));
+document.getElementById('comp-select-south-asia').addEventListener('click', () => applyQuickSelect(REGION_SOUTH_ASIA));
+document.getElementById('comp-select-oceania').addEventListener('click', () => applyQuickSelect(REGION_OCEANIA));
+
+function getCompWeeks() {
+    const from = compDateFromEl.value;
+    const to = compDateToEl.value;
+    const allWeeks = [...new Set(Object.values(currentData).flatMap(rows => rows.map(r => r.week)))].sort();
+    return allWeeks.filter(w => w >= from && w <= to);
+}
+
+function aggregateGeo(geo, weeks) {
+    const weekSet = new Set(weeks);
+    const rows = (currentData[geo] || []).filter(r => weekSet.has(r.week));
+    const agg = { spend: 0, imp: 0, clicks: 0, signups: 0, payers: 0, vbb_value: 0, agents_created: 0 };
+    rows.forEach(r => {
+        agg.spend += r.spend; agg.imp += r.imp; agg.clicks += r.clicks;
+        agg.signups += r.signups; agg.payers += r.payers; agg.vbb_value += r.vbb_value;
+        agg.agents_created += (r.agents_created || 0);
+    });
+    return agg;
+}
+
+function renderComparison() {
+    const weeks = getCompWeeks();
+    let geos = compGeos.filter(c => compActiveGeos.has(c));
+    if (!geos.length) {
+        document.getElementById('comp-table-body').innerHTML = '<tr><td colspan="12" style="text-align:center;color:#666;padding:24px">Select at least one geo</td></tr>';
+        return;
+    }
+    const sortValFn = (c) => {
+        const a = aggregateGeo(c, weeks);
+        switch (compSortKey) {
+            case 'spend': return a.spend; case 'imp': return a.imp;
+            case 'cpc': return a.clicks > 0 ? a.spend / a.clicks : 0;
+            case 'signups': return a.signups;
+            case 'cr': return a.clicks > 0 ? a.signups / a.clicks : 0;
+            case 'cps': return a.signups > 0 ? a.spend / a.signups : 0;
+            case 'payers': return a.payers;
+            case 'agents_created': return a.agents_created;
+            case 'cpac': return a.agents_created > 0 ? a.spend / a.agents_created : 0;
+            case 'cac': return a.payers > 0 ? a.spend / a.payers : 0;
+            case 'roas': return a.spend > 0 ? a.vbb_value / a.spend : 0;
+            default: return a.spend;
+        }
+    };
+    geos.sort((a, b) => compSortDesc ? sortValFn(b) - sortValFn(a) : sortValFn(a) - sortValFn(b));
+
+    let html = '';
+    geos.forEach((c, i) => {
+        const a = aggregateGeo(c, weeks);
+        const cpc = a.clicks > 0 ? a.spend / a.clicks : 0;
+        const cr = a.clicks > 0 ? (a.signups / a.clicks) * 100 : 0;
+        const cps = a.signups > 0 ? a.spend / a.signups : 0;
+        const cpac = a.agents_created > 0 ? a.spend / a.agents_created : 0;
+        const cac = a.payers > 0 ? a.spend / a.payers : 0;
+        const roas = a.spend > 0 ? (a.vbb_value / a.spend) * 100 : 0;
+        html += `<tr class="${i % 2 ? 'tr-alt' : ''}">
+            <td class="cluster-name">${c}</td>
+            <td class="right">${fmtMoney(a.spend)}</td>
+            <td class="right">${fmt(a.imp)}</td>
+            <td class="right">$${cpc.toFixed(2)}</td>
+            <td class="right">${fmt(a.signups)}</td>
+            <td class="right">${cr.toFixed(1)}%</td>
+            <td class="right">$${cps.toFixed(0)}</td>
+            <td class="right">${fmt(a.agents_created)}</td>
+            <td class="right">${a.agents_created > 0 ? fmtMoney(cpac) : '—'}</td>
+            <td class="right">${a.payers.toFixed(0)}</td>
+            <td class="right">${a.payers > 0 ? fmtMoney(cac) : '—'}</td>
+            <td class="right">${roas.toFixed(0)}%</td>
+        </tr>`;
+    });
+    // Totals
+    const totals = { spend: 0, imp: 0, clicks: 0, signups: 0, payers: 0, vbb_value: 0, agents_created: 0 };
+    geos.forEach(c => { const a = aggregateGeo(c, weeks); for (const k in totals) totals[k] += a[k]; });
+    const tCpc = totals.clicks > 0 ? totals.spend / totals.clicks : 0;
+    const tCr = totals.clicks > 0 ? (totals.signups / totals.clicks) * 100 : 0;
+    const tCps = totals.signups > 0 ? totals.spend / totals.signups : 0;
+    const tCpac = totals.agents_created > 0 ? totals.spend / totals.agents_created : 0;
+    const tCac = totals.payers > 0 ? totals.spend / totals.payers : 0;
+    const tRoas = totals.spend > 0 ? (totals.vbb_value / totals.spend) * 100 : 0;
+    html += `<tr style="border-top:2px solid var(--border);font-weight:600">
+        <td class="cluster-name">Total</td>
+        <td class="right">${fmtMoney(totals.spend)}</td>
+        <td class="right">${fmt(totals.imp)}</td>
+        <td class="right">$${tCpc.toFixed(2)}</td>
+        <td class="right">${fmt(totals.signups)}</td>
+        <td class="right">${tCr.toFixed(1)}%</td>
+        <td class="right">$${tCps.toFixed(0)}</td>
+        <td class="right">${fmt(totals.agents_created)}</td>
+        <td class="right">${totals.agents_created > 0 ? fmtMoney(tCpac) : '—'}</td>
+        <td class="right">${totals.payers.toFixed(0)}</td>
+        <td class="right">${totals.payers > 0 ? fmtMoney(tCac) : '—'}</td>
+        <td class="right">${tRoas.toFixed(0)}%</td>
+    </tr>`;
+    document.getElementById('comp-table-body').innerHTML = html;
+}
+
+// ── Init ──
+rebuildGeoDropdown();
+initDateFilters();
+render(select.value);
+renderChart(select.value);
+rebuildCompGeos();
+renderComparison();
+</script>
+</body>
+</html>
