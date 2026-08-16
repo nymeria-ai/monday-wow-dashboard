@@ -40,13 +40,21 @@ ACCOUNTS = {
 # Start date for historical data (first week in dashboard)
 START_DATE = "2026-06-01"  # Pull data from June 1st
 
-# Conversion action names — LOCKED definitions (do NOT change without Tal's approval)
-# Hard Signups = "Hard Signup (MCC)" ONLY
-# Payers = "Paying (MCC)" ONLY
-# VBB ROAS = value of "VBB - HT prod - offline conversions" ONLY
-HARD_SIGNUP_ACTION = "Hard Signup (MCC)"
-PAYER_ACTION = "Paying (MCC)"
-VBB_ACTION = "VBB - HT prod - offline conversions"
+# Conversion action IDs — LOCKED definitions (do NOT change without Tal's approval)
+# All use ctID-based filtering via segments.conversion_action resource name.
+# Hard Signups  = ctID 402542787
+# Payers        = ctID 241978033
+# Agents Created = ctID 7638407984
+# VBB           = ctID 7277286158
+CONV_ACTION_IDS = {
+    "hard_signup": "402542787",
+    "payer": "241978033",
+    "agents_created": "7638407984",
+    "vbb": "7277286158",
+}
+
+# Campaign name exclusions — skip these niches/types entirely
+CAMPAIGN_EXCLUSIONS = {"crm", "service", "globster", "elevate", "taka"}
 
 # ── Geo-based cluster mapping (region prefix → cluster) ──
 GEO_CLUSTERS = {
@@ -158,27 +166,35 @@ def extract_cluster(campaign_name: str, account_id: str) -> str | None:
     base_name = campaign_name.split(" ")[0] if " " in campaign_name else campaign_name
     parts = base_name.split("-")
     parts_lower = [p.lower() for p in parts]
+    name_lower = campaign_name.lower()
 
-    # ── CRM exclusion — FIRST, before any cluster logic ──
-    # Exclude if ANY part of the campaign name contains "crm"
-    if any("crm" in p for p in parts_lower):
+    # ── Exclusions — FIRST, before any cluster logic ──
+    # Exclude if ANY part contains an excluded keyword
+    if any(excl in p for p in parts_lower for excl in CAMPAIGN_EXCLUSIONS):
         return None
     # Also exclude known CRM-adjacent clusters
     if any(p in ("lead_management", "account_management", "lead_agent") for p in parts_lower):
         return None
 
+    # ── Brand / Comp — BEFORE any other cluster logic ──
+    # Brand account → always Brand
+    if account_id == "6073520942":
+        return "Brand"
+    # If "brand" or "comp" appears anywhere in the campaign name → Brand / Competitors
+    # Brand takes priority over Comp
+    if any(p == "brand" or p.startswith("brand_") or p == "brands_t" for p in parts_lower):
+        return "Brand"
+    if any(p.startswith("comp") for p in parts_lower):
+        return "Competitors"
+
     if len(parts) < 3:
         return "Other"
 
-    # EU1 detection — check early before geo/cluster mapping
+    # EU1 detection
     if any(p.lower() == "eu1" for p in parts):
         return "EU"
 
     region = parts[0].lower()
-
-    # Brand account → always Brand
-    if account_id == "6073520942":
-        return "Brand"
 
     # Detect format
     if len(parts) >= 6 and parts[2].lower() == "prm":
@@ -206,7 +222,11 @@ def extract_cluster(campaign_name: str, account_id: str) -> str | None:
 
     # Map cluster value to dashboard name
     if cluster_val in CLUSTER_MAP:
-        return CLUSTER_MAP[cluster_val]
+        mapped = CLUSTER_MAP[cluster_val]
+        # WW region: non-Brand/non-Competitors clusters → WW
+        if region == "ww" and mapped not in ("Brand", "Competitors"):
+            return "WW"
+        return mapped
 
     # Fallback: try prefix matching for comp_ patterns
     if cluster_val.startswith("comp_"):
@@ -214,16 +234,22 @@ def extract_cluster(campaign_name: str, account_id: str) -> str | None:
     if cluster_val.startswith("agent_ai"):
         return "Other"  # Unknown agent type
 
+    # WW region fallback: anything not brand/comp → WW
+    if region == "ww":
+        return "WW"
+
     return "Other"
 
 
-def week_start_friday(date_str: str) -> str:
-    """Convert YYYY-MM-DD to the Friday that starts its Fri-Thu week."""
+def week_start_wed(date_str: str) -> str:
+    """Convert YYYY-MM-DD to the Wednesday that starts its Wed-Tue week.
+    VBB data has a 5-day lag, so Wed-Tue weeks ensure complete VBB for
+    any week whose Tuesday is ≥5 days ago."""
     d = datetime.strptime(date_str, "%Y-%m-%d")
-    # weekday(): Mon=0 … Fri=4 … Sun=6
-    # offset from Friday: (weekday - 4) % 7  →  Fri=0, Sat=1, …, Thu=6
-    friday = d - timedelta(days=(d.weekday() - 4) % 7)
-    return friday.strftime("%Y-%m-%d")
+    # weekday(): Mon=0, Tue=1, Wed=2, …, Sun=6
+    # offset from Wednesday: (weekday - 2) % 7  →  Wed=0, Thu=1, …, Tue=6
+    wednesday = d - timedelta(days=(d.weekday() - 2) % 7)
+    return wednesday.strftime("%Y-%m-%d")
 
 
 def run_gaql(customer_id: str, query: str) -> list:
@@ -281,32 +307,22 @@ def pull_data():
         perf_rows = run_gaql(acct_id, perf_query)
         print(f"  Got {len(perf_rows)} performance rows")
 
-        # Query 2: Conversions (use all_conversions — these are secondary actions)
-        # Filter to only our 3 conversion actions to avoid OOM on large accounts
+        # Query 2: Conversions — all 4 actions by ctID (use all_conversions — secondary actions)
+        conv_action_filter = " OR ".join(
+            f"segments.conversion_action = 'customers/{acct_id}/conversionActions/{cid}'"
+            for cid in CONV_ACTION_IDS.values()
+        )
         conv_query = (
             f"SELECT campaign.name, segments.date, "
-            f"segments.conversion_action_name, metrics.all_conversions, metrics.all_conversions_value "
+            f"segments.conversion_action, metrics.all_conversions, metrics.all_conversions_value "
             f"FROM campaign "
             f"WHERE segments.date BETWEEN '{START_DATE}' AND '{end_date}' "
             f"AND campaign.advertising_channel_type = 'SEARCH' "
-            f"AND segments.conversion_action_name IN ("
-            f"'{HARD_SIGNUP_ACTION}', '{PAYER_ACTION}', '{VBB_ACTION}')"
+            f"AND ({conv_action_filter})"
         )
-        print(f"  Pulling conversion metrics...")
+        print(f"  Pulling conversion metrics (all 4 actions by ctID)...")
         conv_rows = run_gaql(acct_id, conv_query)
         print(f"  Got {len(conv_rows)} conversion rows")
-
-        # Query 3: Agents Created conversion action
-        agents_query = (
-            f"SELECT campaign.name, segments.date, segments.conversion_action, metrics.all_conversions "
-            f"FROM campaign "
-            f"WHERE segments.date BETWEEN '{START_DATE}' AND '{end_date}' "
-            f"AND campaign.advertising_channel_type = 'SEARCH' "
-            f"AND segments.conversion_action = 'customers/{acct_id}/conversionActions/7638407984'"
-        )
-        print(f"  Pulling agents_created metrics...")
-        agents_rows = run_gaql(acct_id, agents_query)
-        print(f"  Got {len(agents_rows)} agents_created rows")
 
         # Process performance rows
         for row in perf_rows:
@@ -318,7 +334,7 @@ def pull_data():
             if cluster is None:
                 continue  # Skip CRM
 
-            week = week_start_friday(date)
+            week = week_start_wed(date)
             cost = float(metrics.get("costMicros", 0)) / 1_000_000
             imps = int(metrics.get("impressions", 0))
             clicks = int(metrics.get("clicks", 0))
@@ -327,41 +343,30 @@ def pull_data():
             cluster_data[cluster][week]["imp"] += imps
             cluster_data[cluster][week]["clicks"] += clicks
 
-        # Process conversion rows
+        # Process conversion rows (all 4 actions unified)
         for row in conv_rows:
             camp_name = row.get("campaign", {}).get("name", "")
             date = row.get("segments", {}).get("date", "")
-            conv_name = row.get("segments", {}).get("conversionActionName", "")
+            conv_action = row.get("segments", {}).get("conversionAction", "")
             metrics = row.get("metrics", {})
 
             cluster = extract_cluster(camp_name, acct_id)
             if cluster is None:
                 continue
 
-            week = week_start_friday(date)
+            week = week_start_wed(date)
             conversions = float(metrics.get("allConversions", 0))
             conv_value = float(metrics.get("allConversionsValue", 0))
 
-            if conv_name == HARD_SIGNUP_ACTION:
+            # Match by ctID suffix in the resource name
+            if conv_action.endswith(f"/{CONV_ACTION_IDS['hard_signup']}"):
                 cluster_data[cluster][week]["signups"] += conversions
-            elif conv_name == PAYER_ACTION:
+            elif conv_action.endswith(f"/{CONV_ACTION_IDS['payer']}"):
                 cluster_data[cluster][week]["payers"] += conversions
-            elif conv_name == VBB_ACTION:
+            elif conv_action.endswith(f"/{CONV_ACTION_IDS['agents_created']}"):
+                cluster_data[cluster][week]["agents_created"] += conversions
+            elif conv_action.endswith(f"/{CONV_ACTION_IDS['vbb']}"):
                 cluster_data[cluster][week]["vbb_value"] += conv_value
-
-        # Process agents_created rows
-        for row in agents_rows:
-            camp_name = row.get("campaign", {}).get("name", "")
-            date = row.get("segments", {}).get("date", "")
-            metrics = row.get("metrics", {})
-
-            cluster = extract_cluster(camp_name, acct_id)
-            if cluster is None:
-                continue
-
-            week = week_start_friday(date)
-            conversions = float(metrics.get("allConversions", 0))
-            cluster_data[cluster][week]["agents_created"] += conversions
 
     return cluster_data
 
