@@ -737,28 +737,17 @@ select.addEventListener('change', () => {
     renderChart(select.value);
 });
 
-// Date filter defaults: last 6 completed weeks (exclude partial/current week)
+// Date filter defaults: last 6 weeks including partial current week
 (function initDateFilters() {
     const allWeeks = [...new Set(Object.values(DATA).flatMap(rows => rows.map(r => r.week)))].sort();
-    // Exclude the last week if it's a partial (current) week — i.e. today is before that week's Tuesday
-    const today = new Date().toISOString().slice(0, 10);
-    let completedWeeks = allWeeks;
+    if (allWeeks.length > 6) {
+        document.getElementById('date-from').value = allWeeks[allWeeks.length - 6];
+    } else if (allWeeks.length > 0) {
+        document.getElementById('date-from').value = allWeeks[0];
+    }
+    // Include the latest week (even if partial)
     if (allWeeks.length > 0) {
-        const lastWeekStart = new Date(allWeeks[allWeeks.length - 1]);
-        const lastWeekEnd = new Date(lastWeekStart);
-        lastWeekEnd.setDate(lastWeekEnd.getDate() + 6); // Tuesday
-        if (today <= lastWeekEnd.toISOString().slice(0, 10)) {
-            completedWeeks = allWeeks.slice(0, -1); // exclude partial week
-        }
-    }
-    if (completedWeeks.length > 6) {
-        document.getElementById('date-from').value = completedWeeks[completedWeeks.length - 6];
-    } else if (completedWeeks.length > 0) {
-        document.getElementById('date-from').value = completedWeeks[0];
-    }
-    // Set 'to' to last completed week to exclude partial
-    if (completedWeeks.length > 0) {
-        document.getElementById('date-to').value = completedWeeks[completedWeeks.length - 1];
+        document.getElementById('date-to').value = allWeeks[allWeeks.length - 1];
     }
 })();
 
