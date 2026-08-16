@@ -40,17 +40,17 @@ ACCOUNTS = {
 # Start date for historical data (first week in dashboard)
 START_DATE = "2026-06-01"  # Pull data from June 1st
 
-# Conversion action IDs — LOCKED definitions (do NOT change without Tal's approval)
-# All use ctID-based filtering via segments.conversion_action resource name.
-# Hard Signups  = ctID 402542787
-# Payers        = ctID 241978033
-# Agents Created = ctID 7638407984
-# VBB           = ctID 7277286158
-CONV_ACTION_IDS = {
-    "hard_signup": "402542787",
-    "payer": "241978033",
-    "agents_created": "7638407984",
-    "vbb": "7277286158",
+# Conversion actions — LOCKED definitions (do NOT change without Tal's approval)
+# Filtered by name in GAQL (ctID for reference only — can't filter by resource name across MCC).
+# Hard Signups   = "Hard Signup (MCC)"                      ctID 402542787
+# Payers         = "Paying (MCC)"                           ctID 241978033
+# Agents Created = "Agent Created (MCC)"                    ctID 7638407984
+# VBB            = "VBB - HT prod - offline conversions"    ctID 7277286158
+CONV_ACTIONS = {
+    "Hard Signup (MCC)": "signups",
+    "Paying (MCC)": "payers",
+    "Agent Created (MCC)": "agents_created",
+    "VBB - HT prod - offline conversions": "vbb",
 }
 
 # Campaign name exclusions — skip these niches/types entirely
@@ -280,20 +280,17 @@ def pull_data():
         perf_rows = run_gaql(acct_id, perf_query)
         print(f"  Got {len(perf_rows)} performance rows")
 
-        # Query 2: Conversions — all 4 actions by ctID (use all_conversions — secondary actions)
-        conv_action_filter = " OR ".join(
-            f"segments.conversion_action = 'customers/{acct_id}/conversionActions/{cid}'"
-            for cid in CONV_ACTION_IDS.values()
-        )
+        # Query 2: Conversions — all 4 actions by name (use all_conversions — secondary actions)
+        conv_names = ", ".join(f"'{name}'" for name in CONV_ACTIONS.keys())
         conv_query = (
             f"SELECT campaign.name, segments.date, "
-            f"segments.conversion_action, metrics.all_conversions, metrics.all_conversions_value "
+            f"segments.conversion_action_name, metrics.all_conversions, metrics.all_conversions_value "
             f"FROM campaign "
             f"WHERE segments.date BETWEEN '{START_DATE}' AND '{end_date}' "
             f"AND campaign.advertising_channel_type = 'SEARCH' "
-            f"AND ({conv_action_filter})"
+            f"AND segments.conversion_action_name IN ({conv_names})"
         )
-        print(f"  Pulling conversion metrics (all 4 actions by ctID)...")
+        print(f"  Pulling conversion metrics (4 actions by name)...")
         conv_rows = run_gaql(acct_id, conv_query)
         print(f"  Got {len(conv_rows)} conversion rows")
 
@@ -316,11 +313,11 @@ def pull_data():
             cluster_data[cluster][week]["imp"] += imps
             cluster_data[cluster][week]["clicks"] += clicks
 
-        # Process conversion rows (all 4 actions unified)
+        # Process conversion rows (all 4 actions by name)
         for row in conv_rows:
             camp_name = row.get("campaign", {}).get("name", "")
             date = row.get("segments", {}).get("date", "")
-            conv_action = row.get("segments", {}).get("conversionAction", "")
+            conv_name = row.get("segments", {}).get("conversionActionName", "")
             metrics = row.get("metrics", {})
 
             cluster = extract_cluster(camp_name, acct_id)
@@ -331,15 +328,11 @@ def pull_data():
             conversions = float(metrics.get("allConversions", 0))
             conv_value = float(metrics.get("allConversionsValue", 0))
 
-            # Match by ctID suffix in the resource name
-            if conv_action.endswith(f"/{CONV_ACTION_IDS['hard_signup']}"):
-                cluster_data[cluster][week]["signups"] += conversions
-            elif conv_action.endswith(f"/{CONV_ACTION_IDS['payer']}"):
-                cluster_data[cluster][week]["payers"] += conversions
-            elif conv_action.endswith(f"/{CONV_ACTION_IDS['agents_created']}"):
-                cluster_data[cluster][week]["agents_created"] += conversions
-            elif conv_action.endswith(f"/{CONV_ACTION_IDS['vbb']}"):
+            metric_key = CONV_ACTIONS.get(conv_name)
+            if metric_key == "vbb":
                 cluster_data[cluster][week]["vbb_value"] += conv_value
+            elif metric_key:
+                cluster_data[cluster][week][metric_key] += conversions
 
     return cluster_data
 
