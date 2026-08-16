@@ -762,7 +762,7 @@ function render(cluster) {
 
 // Compute "All exc. Brand" by summing all individual clusters except Brand and All
 function computeAllExcBrand() {
-    const exclude = new Set(['All', 'Brand', 'Other']);
+    const exclude = new Set(['All', 'All Generic', 'Brand', 'Other']);
     const clusterKeys = Object.keys(DATA).filter(k => !exclude.has(k));
     // Collect all week dates
     const weekSet = new Set();
