@@ -426,8 +426,12 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 
 function weekLabel(dateStr) {
     const d = new Date(dateStr + 'T00:00:00');
-    const end = new Date(d);
+    let end = new Date(d);
     end.setDate(end.getDate() + 6); // Wed + 6 = Tue
+    // Cap at yesterday if this is a partial (current) week
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(0,0,0,0);
+    if (end > yesterday) end = yesterday;
     const mStart = MONTHS[d.getMonth()];
     const mEnd = MONTHS[end.getMonth()];
     if (mStart === mEnd) return mStart + ' ' + d.getDate() + '–' + end.getDate();
@@ -745,10 +749,9 @@ select.addEventListener('change', () => {
     } else if (allWeeks.length > 0) {
         document.getElementById('date-from').value = allWeeks[0];
     }
-    // Include the latest week (even if partial)
-    if (allWeeks.length > 0) {
-        document.getElementById('date-to').value = allWeeks[allWeeks.length - 1];
-    }
+    // Set TO to yesterday (data available through yesterday)
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+    document.getElementById('date-to').value = yesterday.toISOString().slice(0, 10);
 })();
 
 document.getElementById('date-from').addEventListener('change', () => { render(select.value); renderChart(select.value); });
