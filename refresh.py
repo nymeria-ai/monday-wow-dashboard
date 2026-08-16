@@ -85,7 +85,8 @@ KEYWORD_CLUSTERS = [
     ("agent_ailegal", "Agent - Legal", "startswith"),
     ("agent_ainote", "Agent - Note Taker", "startswith"),
     ("agent_aireal", "Agent - Real Estate", "startswith"),
-    ("agent_aiwork", "Agent - Generic", "startswith"),  # covers work_builder + work_process
+    ("agent_aiwork_builder", "Work Builder (agent)", "startswith"),
+    ("agent_aiwork_process", "Agent - Work Process", "startswith"),
     ("agent_aiconstruction", "Agent - Construction", "startswith"),
     ("agent_aimarketing", "Agent - Marketing", "startswith"),
     ("agent_aigeneric", "Agent - Generic", "startswith"),
