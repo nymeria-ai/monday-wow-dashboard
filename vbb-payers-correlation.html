@@ -82,7 +82,7 @@ td { padding: 8px 12px; border-top: 1px solid var(--border); font-size: 12px; }
 <body>
 
 <h1>VBB vs Payers — Correlation Analysis</h1>
-<p class="subtitle">Main Account (3746504118) · May 18 – Aug 16, 2026 · 13 weeks · Source: Google Ads API</p>
+<p class="subtitle">Main Account (3746504118) · May 18 – Aug 9, 2026 · 12 weeks (excl. last baking week) · Both metrics attributed to same click-date week · Source: Google Ads API</p>
 
 <div class="stats-row" id="stats-row"></div>
 
@@ -132,8 +132,7 @@ const DATA = [
     {"week":"2026-07-13","payers":62.0,"vbb":622675},
     {"week":"2026-07-20","payers":57.0,"vbb":725833},
     {"week":"2026-07-27","payers":29.0,"vbb":618894},
-    {"week":"2026-08-03","payers":69.0,"vbb":956684},
-    {"week":"2026-08-10","payers":31.0,"vbb":607446}
+    {"week":"2026-08-03","payers":69.0,"vbb":956684}
 ];
 
 const ROLLING = [
@@ -145,12 +144,11 @@ const ROLLING = [
     {"week":"2026-07-13","r":-0.2719},
     {"week":"2026-07-20","r":-0.7872},
     {"week":"2026-07-27","r":0.2805},
-    {"week":"2026-08-03","r":0.6367},
-    {"week":"2026-08-10","r":0.9301}
+    {"week":"2026-08-03","r":0.6367}
 ];
 
-const PEARSON_R = 0.1537;
-const R_SQUARED = 0.0236;
+const PEARSON_R = 0.0868;
+const R_SQUARED = 0.0075;
 
 const fmtMoney = v => '$' + (v >= 1000 ? (v/1000).toFixed(0) + 'K' : v.toFixed(0));
 const fmtWeek = w => { const d = new Date(w + 'T00:00:00'); return d.toLocaleDateString('en-US', {month:'short', day:'numeric'}); };
@@ -169,7 +167,7 @@ document.getElementById('stats-row').innerHTML = `
     <div class="stat-card">
         <div class="stat-label">R² (explained variance)</div>
         <div class="stat-val weak">${(R_SQUARED * 100).toFixed(1)}%</div>
-        <div class="stat-sub">VBB explains ~2% of Payer variance</div>
+        <div class="stat-sub">VBB explains <1% of Payer variance</div>
     </div>
     <div class="stat-card">
         <div class="stat-label">Avg Weekly Payers</div>
@@ -378,18 +376,18 @@ document.getElementById('verdict').innerHTML = `
     <h3>📊 Verdict: Is VBB a good predictor of Payers?</h3>
     <p>
         <strong>Short answer: No.</strong> The overall Pearson correlation is <strong>r = ${PEARSON_R.toFixed(3)}</strong> 
-        (R² = ${(R_SQUARED*100).toFixed(1)}%), meaning VBB explains only ~2% of the variance in Payer count. 
-        This is statistically negligible.
+        (R² = ${(R_SQUARED*100).toFixed(1)}%), meaning VBB explains less than 1% of the variance in Payer count. 
+        This is statistically negligible. Both metrics are attributed to the same click-date week, and last week excluded to avoid bake lag.
     </p>
     <p style="margin-top:8px">
-        <strong>The rolling correlation tells a more nuanced story:</strong> it swings wildly from 
-        <strong>r = −0.79</strong> (late July — inverse!) to <strong>r = +0.93</strong> (early Aug — strong positive). 
-        This instability means the relationship is not stable — it flips direction frequently, likely driven by 
+        <strong>The rolling correlation is wildly unstable:</strong> it swings from 
+        <strong>r = −0.79</strong> (late July — inverse!) to <strong>r = +0.81</strong> (late June — strong positive). 
+        This instability means the relationship flips direction frequently, likely driven by 
         external factors (budget shifts, campaign launches, seasonality, conversion delays).
     </p>
     <p style="margin-top:8px">
         <strong>Key observation:</strong> The week of Jul 27 is a clear outlier — only 29 payers while VBB was $619K. 
-        Similarly, Aug 3 had 69 payers but VBB spiked to $957K (highest in the period). This suggests VBB value 
+        Aug 3 had 69 payers but VBB spiked to $957K (highest in the period). This suggests VBB value 
         is driven by high-value users that don't necessarily correlate with payer volume.
     </p>
     <p style="margin-top:8px">
