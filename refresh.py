@@ -85,7 +85,8 @@ KEYWORD_CLUSTERS = [
     ("agent_ailegal", "Agent - Legal", "startswith"),
     ("agent_ainote", "Agent - Note Taker", "startswith"),
     ("agent_aireal", "Agent - Real Estate", "startswith"),
-    ("agent_aiwork_builder", "Agent - Work Builder", "startswith"),
+    ("agent_aiwork_builder", "Agent - Work Agent", "startswith"),
+    ("agent_aiwork_agent", "Agent - Work Agent", "startswith"),
     ("agent_aiwork_process", "Agent - Work Process", "startswith"),
     ("agent_aiconstruction", "Agent - Construction", "startswith"),
     ("agent_aimarketing", "Agent - Marketing", "startswith"),
@@ -344,7 +345,7 @@ def compute_aggregates(cluster_data: dict) -> dict:
     for weeks in cluster_data.values():
         all_weeks.update(weeks.keys())
 
-    EXCLUDED_FROM_GENERIC = {"All", "All exc. Brand", "All Generic", "Brand", "Competitors", "Agent - Work Builder"}
+    EXCLUDED_FROM_GENERIC = {"All", "All exc. Brand", "All Generic", "Brand", "Competitors", "Agent - Work Agent"}
 
     # All cluster + All Generic cluster
     for week in sorted(all_weeks):
