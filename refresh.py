@@ -43,11 +43,13 @@ START_DATE = "2026-06-01"  # Pull data from June 1st
 # Conversion actions — LOCKED definitions (do NOT change without Tal's approval)
 # Filtered by name in GAQL (ctID for reference only — can't filter by resource name across MCC).
 # Hard Signups   = "Hard Signup (MCC)"                      ctID 402542787
+# Work Signups   = "Hard signup Work goal (MCC)"            ctID 318041244
 # Payers         = "Paying (MCC)"                           ctID 241978033
 # Agents Created = "Agent Created (MCC)"                    ctID 7638407984
 # VBB            = "VBB - HT prod - offline conversions"    ctID 7277286158
 CONV_ACTIONS = {
     "Hard Signup (MCC)": "signups",
+    "Hard signup Work goal (MCC)": "work_signups",
     "Paying (MCC)": "payers",
     "Agent Created (MCC)": "agents_created",
     "VBB - HT prod - offline conversions": "vbb",
@@ -262,9 +264,9 @@ def pull_data():
 
     print(f"Pulling data from {START_DATE} to {end_date}")
 
-    # Structure: {cluster: {week: {spend, imp, clicks, signups, payers, vbb_value, agents_created}}}
+    # Structure: {cluster: {week: {spend, imp, clicks, signups, work_signups, payers, vbb_value, agents_created}}}
     cluster_data = defaultdict(lambda: defaultdict(lambda: {
-        "spend": 0, "imp": 0, "clicks": 0, "signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0
+        "spend": 0, "imp": 0, "clicks": 0, "signups": 0, "work_signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0
     }))
 
     for acct_id, acct_name in ACCOUNTS.items():
@@ -349,8 +351,8 @@ def compute_aggregates(cluster_data: dict) -> dict:
 
     # All cluster + All Generic cluster
     for week in sorted(all_weeks):
-        totals = {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0}
-        generic_totals = {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0}
+        totals = {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "work_signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0}
+        generic_totals = {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "work_signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0}
         for cluster_name, weeks in cluster_data.items():
             if cluster_name in ("All", "All exc. Brand", "All Generic"):
                 continue
@@ -383,12 +385,13 @@ def format_data_for_html(cluster_data: dict) -> str:
         weeks_data = cluster_data[cluster_name]
         rows = []
         for week in sorted_weeks:
-            d = weeks_data.get(week, {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0})
+            d = weeks_data.get(week, {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "work_signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0})
             rows.append({
                 "spend": round(d["spend"], 2),
                 "imp": d["imp"],
                 "clicks": d["clicks"],
                 "signups": round(d["signups"], 1),
+                "work_signups": round(d["work_signups"], 1),
                 "payers": int(round(d["payers"])),
                 "vbb_value": round(d["vbb_value"], 2),
                 "agents_created": round(d["agents_created"], 1),
@@ -523,7 +526,7 @@ def pull_geo_data():
 
     print(f"\n🌍 Pulling GEO data from {START_DATE} to {end_date}")
 
-    empty_metrics = lambda: {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0}
+    empty_metrics = lambda: {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "work_signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0}
     data = {
         "brand": defaultdict(lambda: defaultdict(empty_metrics)),
         "nonbrand": defaultdict(lambda: defaultdict(empty_metrics)),
@@ -614,7 +617,7 @@ def compute_geo_aggregates(data: dict) -> dict:
             all_weeks.update(geo_weeks.keys())
 
         for week in sorted(all_weeks):
-            totals = {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0}
+            totals = {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "work_signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0}
             for geo, weeks in data[brand_key].items():
                 if geo == "All Geos":
                     continue
@@ -640,12 +643,13 @@ def format_geo_data_for_html(data: dict) -> tuple[str, str]:
             weeks_data = data[brand_key][geo]
             rows = []
             for week in sorted_weeks:
-                d = weeks_data.get(week, {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0})
+                d = weeks_data.get(week, {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "work_signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0})
                 rows.append({
                     "spend": round(d["spend"], 2),
                     "imp": d["imp"],
                     "clicks": d["clicks"],
                     "signups": round(d["signups"], 1),
+                    "work_signups": round(d["work_signups"], 1),
                     "payers": int(round(d["payers"])),
                     "vbb_value": round(d["vbb_value"], 2),
                     "agents_created": round(d["agents_created"], 1),
