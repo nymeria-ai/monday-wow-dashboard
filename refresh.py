@@ -710,8 +710,7 @@ def main_geo():
 if __name__ == "__main__":
     if "--geo-only" in sys.argv:
         main_geo()
-    elif "--all" in sys.argv:
+    else:
+        # Always refresh both cluster + geo reports together
         main()
         main_geo()
-    else:
-        main()
