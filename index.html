@@ -434,11 +434,9 @@ td {
                 <th class="right">Impressions</th>
                 <th class="right">Δ</th>
                 <th class="right">Signups</th>
-                <th class="right">Δ</th>
                 <th class="right">CPS</th>
                 <th class="right">Δ</th>
                 <th class="right">Work SU</th>
-                <th class="right">Δ</th>
                 <th class="right">Work CPS</th>
                 <th class="right">Δ</th>
                 <th class="right">Agents Created</th>
@@ -553,9 +551,9 @@ td {
             <th>Week</th>
             <th class="right">Spend</th><th class="right">Δ</th>
             <th class="right">Impressions</th><th class="right">Δ</th>
-            <th class="right">Signups</th><th class="right">Δ</th>
+            <th class="right">Signups</th>
             <th class="right">CPS</th><th class="right">Δ</th>
-            <th class="right">Work SU</th><th class="right">Δ</th>
+            <th class="right">Work SU</th>
             <th class="right">Work CPS</th><th class="right">Δ</th>
             <th class="right">Agents Created</th>
             <th class="right">CPAC</th><th class="right">Δ</th>
@@ -713,7 +711,6 @@ function render(cluster) {
         { label: 'Spend', val: fmtMoney(last.spend), d: delta(last.spend, prev?.spend) },
         { label: 'Impressions', val: fmt(last.imp), d: delta(last.imp, prev?.imp) },
         { label: 'Hard Signups', val: fmt(last.signups), d: delta(last.signups, prev?.signups) },
-        { label: 'Work Signups', val: fmt(last.work_signups || 0), d: delta(last.work_signups || 0, prev?.work_signups || 0) },
         { label: 'VBB ROAS', val: fmtRoas(lastRoas), d: delta(lastRoas, prevRoas) },
     ];
 
@@ -762,11 +759,9 @@ function render(cluster) {
             <td class="right">${fmt(r.imp)}</td>
             <td class="right">${deltaHtml(impD.pct, false)}</td>
             <td class="right">${fmt(r.signups)}</td>
-            <td class="right">${deltaHtml(suD.pct, false)}</td>
             <td class="right">${r.signups > 0 ? fmtMoney(cps) : '—'}</td>
             <td class="right">${i > 0 && r.signups > 0 && prevCps > 0 ? deltaHtml(cpsD.pct, true) : ''}</td>
             <td class="right">${fmt(wsu)}</td>
-            <td class="right">${deltaHtml(wsuD.pct, false)}</td>
             <td class="right">${wsu > 0 ? fmtMoney(wCps) : '—'}</td>
             <td class="right">${i > 0 && wsu > 0 && prevWCps > 0 ? deltaHtml(wCpsD.pct, true) : ''}</td>
             <td class="right">${fmt(ac)}</td>
@@ -1294,7 +1289,6 @@ function renderGeoKPIs(geo) {
         { label: 'Spend', val: fmtMoney(last.spend), d: delta(last.spend, prev?.spend) },
         { label: 'Impressions', val: fmt(last.imp), d: delta(last.imp, prev?.imp) },
         { label: 'Hard Signups', val: fmt(last.signups), d: delta(last.signups, prev?.signups) },
-        { label: 'Work Signups', val: fmt(last.work_signups || 0), d: delta(last.work_signups || 0, prev?.work_signups || 0) },
         { label: 'VBB ROAS', val: fmtRoas(lr), d: delta(lr, pr) },
     ];
     document.getElementById('geo-kpi-grid').innerHTML = kpis.map(k =>
@@ -1320,9 +1314,9 @@ function renderGeoTable(geo) {
             <td class="week-cell">${weekLabel(r.week)}</td>
             <td class="right">${fmtMoney(r.spend)}</td><td class="right">${deltaHtml(delta(r.spend,prev?.spend).pct,false)}</td>
             <td class="right">${fmt(r.imp)}</td><td class="right">${deltaHtml(delta(r.imp,prev?.imp).pct,false)}</td>
-            <td class="right">${fmt(r.signups)}</td><td class="right">${deltaHtml(delta(r.signups,prev?.signups).pct,false)}</td>
+            <td class="right">${fmt(r.signups)}</td>
             <td class="right">${r.signups>0?fmtMoney(cps):'—'}</td><td class="right">${i>0&&r.signups>0&&pCps>0?deltaHtml(delta(cps,pCps).pct,true):''}</td>
-            <td class="right">${fmt(wsu)}</td><td class="right">${deltaHtml(delta(wsu,pWsu).pct,false)}</td>
+            <td class="right">${fmt(wsu)}</td>
             <td class="right">${wsu>0?fmtMoney(wCps):'—'}</td><td class="right">${i>0&&wsu>0&&pWCps>0?deltaHtml(delta(wCps,pWCps).pct,true):''}</td>
             <td class="right">${fmt(ac)}</td>
             <td class="right">${ac>0?fmtMoney(cpac):'—'}</td><td class="right">${i>0&&ac>0&&pCpac>0?deltaHtml(delta(cpac,pCpac).pct,true):''}</td>
