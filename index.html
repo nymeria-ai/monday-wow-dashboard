@@ -385,10 +385,41 @@ td {
 .geo-dropdown-item:hover { background: var(--surface-2); }
 .geo-dropdown-item.selected { color: var(--green); font-weight: 500; }
 
+.dl-btn {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: background 0.15s, color 0.15s;
+}
+.dl-btn:hover {
+    background: var(--surface-2);
+    color: var(--text);
+}
+.dl-btn svg {
+    width: 12px;
+    height: 12px;
+    fill: currentColor;
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
-<body>
+<body style="position:relative;">
+
+<a class="dl-btn" href="dashboard-spec.md" download="wow-dashboard-spec.md" title="Download Dashboard md">
+    <svg viewBox="0 0 16 16"><path d="M8 12l-4-4h2.5V2h3v6H12L8 12z"/><path d="M14 14H2v-2h12v2z"/></svg>
+    Spec
+</a>
 
 <h1>📊 SEM Performance Dashboard</h1>
 <p class="subtitle">Wed–Tue weeks · All search campaigns across 5 accounts</p>
