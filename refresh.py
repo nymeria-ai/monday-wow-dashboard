@@ -90,7 +90,9 @@ KEYWORD_CLUSTERS = [
     ("agent_aiwork_builder", "Agent - Work Agent", "startswith"),
     ("agent_aiwork_agent", "Agent - Work Agent", "startswith"),
     ("agent_aipmo_work_process", "Agent - Work Process", "startswith"),  # new name (same cluster as agent_aiwork_process)
-    ("agent_aiwork_process", "Agent - Work Process", "startswith"),      # old name — keep for historical data
+    ("agent_aipmo_work_process", "Agent - Work Process", "startswith"),  # new name (same cluster as agent_aiwork_process)
+    ("agent_aiwork_process", "Agent - Work Process", "startswith"),      # legacy name — keep for historical data
+    ("agent_aipmo", "Agent - AI PMO", "startswith"),      # old name — keep for historical data
     ("agent_aipmo", "Agent - AI PMO", "startswith"),
     ("agent_aiconstruction", "Agent - Construction", "startswith"),
     ("agent_aimarketing", "Agent - Marketing", "startswith"),
