@@ -200,7 +200,9 @@ The `extract_cluster()` function maps each campaign name to a dashboard cluster.
     | `agent_aireal` | Agent - Real Estate |
     | `agent_aiwork_builder` | Agent - Work Agent |
     | `agent_aiwork_agent` | Agent - Work Agent |
+    | `agent_aipmo_work_process` | Agent - Work Process |
     | `agent_aiwork_process` | Agent - Work Process |
+    | `agent_aipmo` | Agent - PMO |
     | `agent_aiconstruction` | Agent - Construction |
     | `agent_aimarketing` | Agent - Marketing |
     | `agent_aigeneric` | Agent - Generic |
@@ -437,4 +439,4 @@ Geos are **auto-discovered** from Google Ads `geographic_view` data. To support 
 
 | Date | Change |
 |---|---|
-| 2026-08-26 | Added this spec file and download button |
+| 2026-08-26 | Added this spec file and download button. Added Agent - PMO cluster (`agent_aipmo`). Added `agent_aipmo_work_process` → Agent - Work Process mapping (renamed cluster, aggregated with old `agent_aiwork_process`). |
