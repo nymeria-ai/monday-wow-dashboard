@@ -2,25 +2,37 @@
 
 > **Purpose:** This document is the single source of truth for rebuilding, understanding, or extending the WoW & Geo SEM Performance Dashboard. Paste it to an AI agent and it can fully reconstruct the dashboard or answer any question about how it works.
 
-> **Last updated:** 2026-08-26
+> **Last updated:** 2026-08-27
 
 ---
 
 ## 1. Overview
 
-A static HTML dashboard (GitHub Pages) tracking week-over-week SEM performance for monday.com across all Google Ads Search campaigns, organized by **cluster** (product/geo/agent groupings) and by **geo** (country-level breakdowns with brand/non-brand split).
+A static HTML dashboard (GitHub Pages) tracking week-over-week SEM performance for monday.com across Google Ads and Microsoft Ads (Bing) Search campaigns, organized by **cluster** (product/geo/agent groupings) and by **geo** (country-level breakdowns with brand/non-brand split, Google only).
 
 - **URL:** `https://nymeria-ai.github.io/monday-wow-dashboard/`
 - **Repo:** `nymeria-ai/monday-wow-dashboard` (GitHub, `main` branch)
 - **Stack:** Single `index.html` with inline CSS + vanilla JS + Chart.js 4.4.7 (CDN). No frameworks, no build step.
-- **Data:** Embedded as JS objects (`DATA`, `GEO_DATA_BRAND`, `GEO_DATA_NONBRAND`) inside `<script>` tags. No external API calls at runtime.
-- **Refresh script:** `refresh.py` (Python 3)
+- **Data:** Embedded as JS objects (`DATA`, `GEO_DATA_BRAND`, `GEO_DATA_NONBRAND`, `BING_DATA`) inside `<script>` tags. No external API calls at runtime.
+- **Refresh scripts:** `refresh.py` (Google Ads), `bing_refresh.py` (Microsoft Ads / Bing)
 
 ---
 
-## 2. Data Source & API Access
+## 2. Dashboard Tabs
 
-### Google Ads Accounts
+The dashboard has **3 tabs**:
+
+| Tab | Data Source | Description |
+|---|---|---|
+| 📊 WoW Report | Google Ads | Cluster-level WoW performance across 5 Google Ads accounts |
+| 🌍 Geo Report | Google Ads | Country-level breakdowns with brand/non-brand split |
+| 📊 Bing WoW | Microsoft Ads | Cluster-level WoW performance across 3 Bing accounts |
+
+---
+
+## 3. Data Sources & API Access
+
+### 3.1 Google Ads Accounts
 
 All data is pulled from **5 Google Ads accounts** under the monday.com MCC (`764-577-9471`):
 
@@ -32,21 +44,30 @@ All data is pulled from **5 Google Ads accounts** under the monday.com MCC (`764
 | `9441310809` | Locals | Localized campaigns |
 | `6073520942` | Brand | Brand campaigns (always → "Brand" cluster) |
 
-### API Access
+**API Access:** All queries go through **Funnel Gate** (`http://localhost:9400/execute`). Never call Google Ads API directly.
 
-- All queries go through **Funnel Gate** (`http://localhost:9400/execute`) — a local proxy that handles OAuth tokens and audit logging.
-- API action: `gaql_query` on platform `google_ads`.
-- **Never call Google Ads API directly.** Funnel Gate manages auth tokens and audit trail.
-- Channel type filter: `campaign.advertising_channel_type = 'SEARCH'` (Search only).
+### 3.2 Microsoft Ads (Bing) Accounts
 
-### Data Range
+Data pulled from **3 Microsoft Ads accounts** under Customer ID `21132515`:
 
-- **Start date:** `2026-06-01` (hardcoded in `refresh.py` as `START_DATE`)
+| Account ID | Name | Notes |
+|---|---|---|
+| `50033985` | dapulse | Main account |
+| `135096643` | Monday.com - Big 4 | Big 4 markets |
+| `135096648` | Monday.com - Locals | Localized campaigns |
+
+**API Access:** Uses `bingads` Python SDK with OAuth via `marketingaibuilders@monday.com`. Credentials in `~/.openclaw/workspace/.secrets/microsoft-ads-*.md`.
+
+**Auth:** `OAuthWebAuthCodeGrant` with tenant-specific endpoint. Redirect URI: `https://login.microsoftonline.com/common/oauth2/nativeclient`.
+
+### 3.3 Data Range
+
+- **Start date:** `2026-06-01` (hardcoded in both scripts as `START_DATE`)
 - **End date:** Yesterday (dynamically computed at refresh time)
 
 ---
 
-## 3. Week Definition
+## 4. Week Definition
 
 ### ⚠️ Wednesday to Tuesday (NOT Monday–Sunday!)
 
@@ -54,336 +75,185 @@ All data is pulled from **5 Google Ads accounts** under the monday.com MCC (`764
 
 **Function:** `week_start_wed(date_str)` — converts any date to the Wednesday that starts its Wed–Tue week.
 
-```python
-# weekday(): Mon=0, Tue=1, Wed=2, …, Sun=6
-# offset from Wednesday: (weekday - 2) % 7
-wednesday = d - timedelta(days=(d.weekday() - 2) % 7)
-```
-
 ---
 
-## 4. Metrics — How Each One Is Pulled
+## 5. Metrics
+
+### 5.1 Google Ads Metrics
 
 ### ╔══════════════════════════════════════════════════════════════╗
 ### ║  LOCKED METRIC DEFINITIONS — DO NOT CHANGE WITHOUT TAL'S OK ║
 ### ╚══════════════════════════════════════════════════════════════╝
 
-All conversion metrics use `metrics.all_conversions` (secondary actions, includes cross-device and view-through). Verified by Tal Herman on 2026-07-30.
+All conversion metrics use `metrics.all_conversions` (secondary actions). Verified by Tal Herman on 2026-07-30.
 
-### 4.1 Performance Metrics
-
-**GAQL Query:**
-```sql
-SELECT campaign.name, segments.date,
-       metrics.cost_micros, metrics.impressions, metrics.clicks
-FROM campaign
-WHERE segments.date BETWEEN '{START_DATE}' AND '{end_date}'
-  AND campaign.advertising_channel_type = 'SEARCH'
-```
-
-| Metric | Source Field | Transformation |
-|---|---|---|
-| **Spend** | `metrics.cost_micros` | Divided by 1,000,000 for USD |
-| **Impressions** | `metrics.impressions` | Raw integer |
-| **Clicks** | `metrics.clicks` | Raw integer |
-
-### 4.2 Conversion Metrics
-
-**GAQL Query:**
-```sql
-SELECT campaign.name, segments.date,
-       segments.conversion_action_name, metrics.all_conversions, metrics.all_conversions_value
-FROM campaign
-WHERE segments.date BETWEEN '{START_DATE}' AND '{end_date}'
-  AND campaign.advertising_channel_type = 'SEARCH'
-  AND segments.conversion_action_name IN (
-    'Hard Signup (MCC)',
-    'Hard signup Work goal (MCC)',
-    'Paying (MCC)',
-    'Agent Created (MCC)',
-    'VBB - HT prod - offline conversions'
-  )
-```
-
-| Conversion Action Name | Field Used | Maps To | Notes |
+| Conversion Action Name | Field Used | Maps To | ctID |
 |---|---|---|---|
-| `Hard Signup (MCC)` | `metrics.all_conversions` | `signups` | ctID 402542787 |
-| `Hard signup Work goal (MCC)` | `metrics.all_conversions` | `work_signups` | ctID 318041244 |
-| `Paying (MCC)` | `metrics.all_conversions` | `payers` | ctID 241978033 |
-| `Agent Created (MCC)` | `metrics.all_conversions` | `agents_created` | ctID 7638407984 |
-| `VBB - HT prod - offline conversions` | `metrics.all_conversions_value` ⚠️ | `vbb_value` | ctID 7277286158. Uses **VALUE**, not count! |
+| `Hard Signup (MCC)` | `metrics.all_conversions` | `signups` | 402542787 |
+| `Hard signup Work goal (MCC)` | `metrics.all_conversions` | `work_signups` | 318041244 |
+| `Paying (MCC)` | `metrics.all_conversions` | `payers` | 241978033 |
+| `Agent Created (MCC)` | `metrics.all_conversions` | `agents_created` | 7638407984 |
+| `VBB - HT prod - offline conversions` | `metrics.all_conversions_value` ⚠️ | `vbb_value` | 7277286158 |
 
-**Critical:** VBB uses `all_conversions_value` (the dollar value), NOT `all_conversions` (the count). All other conversions use count.
+**Critical:** VBB uses `all_conversions_value` (the dollar value), NOT `all_conversions` (the count).
 
-### 4.3 Derived / Calculated Metrics
+### 5.2 Bing Metrics
 
-Computed in frontend JavaScript, not pulled from Google Ads:
+Only **Hard Signups** and **Work Signups** — no VBB, Agents Created, or Payers on Bing.
+
+| Goal Name | Goal IDs (accumulated) | Maps To |
+|---|---|---|
+| Hard Signups | `20117320` + `31018720` | `signups` |
+| Work Signups | `31008558` + `31018719` | `work_signups` |
+
+Data pulled via `GoalsAndFunnelsReportRequest` with `AllConversions` column. GoalId filtering done in code (not SOAP filter).
+
+### 5.3 Derived / Calculated Metrics (Frontend)
 
 | Metric | Formula | Notes |
 |---|---|---|
-| **CPS** (Cost Per Signup) | `spend / signups` | `—` if signups = 0 |
-| **CAC** (Customer Acquisition Cost) | `spend / payers` | `—` if payers = 0 |
-| **CPAC** (Cost Per Agent Created) | `spend / agents_created` | `—` if AC = 0 |
-| **CTR** (Click-Through Rate) | `clicks / impressions` | Shown as `X.X%` |
-| **CR** (Conversion Rate) | `signups / clicks` | Shown as `X.X%` |
-| **%Work** (Work Signup %) | `work_signups / signups` | Indicates intent quality |
-| **VBB ROAS** | `vbb_value / spend` | Return on ad spend from VBB |
-| **WoW Δ** (Week-over-Week) | `(this_week - prev_week) / prev_week` | `▲ X.X%` or `▼ X.X%` |
+| **CPS** / Hard Signup CPS | `spend / signups` | `—` if signups = 0 |
+| **CAC** | `spend / payers` | Google only |
+| **CPAC** | `spend / agents_created` | Google only |
+| **VBB ROAS** | `vbb_value / spend` | Google only |
+| **Work CPS** | `spend / work_signups` | |
+| **WoW Δ** | `(this - prev) / prev` | `▲ X.X%` or `▼ X.X%` |
 
 ---
 
-## 5. Campaign Clustering
+## 6. Campaign Clustering
 
-The `extract_cluster()` function maps each campaign name to a dashboard cluster. Processing order matters — first match wins.
+The `extract_cluster()` function maps each campaign name to a dashboard cluster. Same logic in both `refresh.py` and `bing_refresh.py`.
 
-### 5.1 Campaign Name Formats
+### 6.1 Key Rules
 
-**Long format (PRM):**
-```
-{geo}-{lang}-prm-{product}-{channel}-{cluster}-{match}-{device}-{theme}-{network}
-```
-- Position `[5]` (0-indexed, split by `-`) = cluster value
-- Detected when `len(parts) >= 6` and `parts[2] == "prm"`
+1. **Comp/Brand ALWAYS wins over geo.** A campaign like `eu1-...-comp1-...` goes to "Competitors" only, NOT to "EU Generic".
+2. **Geo clusters are labeled "Generic"** (e.g., "Canada Generic", "DACH Generic") to indicate they exclude comp activity.
+3. **The Competitors cluster includes all geos** — it's the only place to see comp activity regardless of geography.
+4. A note appears on both Google and Bing views explaining this.
 
-**Short format:**
-```
-{geo}-s-{cluster}-{match}-{device}-{variant}
-```
-- Position `[2]` = cluster value
-- Detected when `len(parts) >= 3` and `parts[1] == "s"`
+### 6.2 Processing Order (first match wins)
 
-### 5.2 Processing Order
+1. **Exclusions** — Skip if campaign name contains: `crm`, `service`, `globster`, `elevate`, `taka`, `lead_management`, `account_management`, `lead_agent`
+2. **Brand account** — Account `6073520942` (Google only) → always **"Brand"**
+3. **Brand keywords** — `brand`, `brand_*`, `brands_t` → **"Brand"**
+4. **Comp keywords** — starts with `comp` → **"Competitors"**
+5. **EU1** — part equals `eu1` → **"EU Generic"**
+6. **Geo mapping** — region prefix → **"[Geo] Generic"**:
+   - `br`, `br_pt` → Brazil Generic
+   - `ca` → Canada Generic
+   - `dach`, `de`, `german_de` → DACH Generic
+   - `fr`, `fr_fr` → France Generic
+   - `latam` → LATAM Generic
+   - `mx` → Mexico Generic
+7. **WW** → "WW"
+8. **Keyword matching** — cluster_val matched against `KEYWORD_CLUSTERS` list (Agent clusters, Product clusters, etc.)
+9. **Fallback** → "Other"
 
-1. **Exclusions (first!)** — Skip if ANY part of the campaign name contains:
-   - `crm`, `service`, `globster`, `elevate`, `taka`
-   - Also skip if any part equals: `lead_management`, `account_management`, `lead_agent`
+### 6.3 Computed Aggregate Clusters
 
-2. **Brand account** — Account `6073520942` → always **"Brand"**
-
-3. **Brand/Comp keywords** — If any part:
-   - equals `brand` or starts with `brand_` or equals `brands_t` → **"Brand"**
-   - starts with `comp` → **"Competitors"**
-
-4. **EU1 detection** — If any part equals `eu1` → **"EU"**
-
-5. **Extract cluster_val** from position [5] (PRM) or [2] (short format)
-
-6. **CRM safety net** — If `crm` in cluster_val → skip
-
-7. **AI/Max special case** — If cluster_val is `ai` or `max`:
-   - Check geo map for region prefix → use geo cluster
-   - Otherwise → **"Other"**
-
-8. **Geo-based clusters** — Check region (position [0]) against GEO_CLUSTERS:
-
-   | Region Prefix | Cluster |
-   |---|---|
-   | `br`, `br_pt` | Brazil |
-   | `ca` | Canada |
-   | `dach`, `de`, `german_de` | DACH |
-   | `fr`, `fr_fr` | France |
-   | `latam` | LATAM |
-   | `mx` | Mexico |
-
-9. **WW region** — If region is `ww` → **"WW"**
-
-10. **Keyword matching** — Match cluster_val against `KEYWORD_CLUSTERS` list (ordered, first match wins):
-
-    **Agent clusters** (all `startswith`):
-    | Keyword | Cluster |
-    |---|---|
-    | `agent_aihr` | Agent - HR |
-    | `agent_aifinance` | Agent - Finance |
-    | `agent_aiit` | Agent - IT |
-    | `agent_ailegal` | Agent - Legal |
-    | `agent_ainote` | Agent - Note Taker |
-    | `agent_aireal` | Agent - Real Estate |
-    | `agent_aiwork_builder` | Agent - Work Agent |
-    | `agent_aiwork_agent` | Agent - Work Agent |
-    | `agent_aipmo_work_process` | Agent - Work Process |
-    | `agent_aiwork_process` | Agent - Work Process |
-    | `agent_aipmo` | Agent - PMO |
-    | `agent_aiconstruction` | Agent - Construction |
-    | `agent_aimarketing` | Agent - Marketing |
-    | `agent_aigeneric` | Agent - Generic |
-    | `agent_aicomp` | Agent - Comp |
-
-    **Product clusters** (mixed modes):
-    | Keywords | Cluster | Mode |
-    |---|---|---|
-    | `project`, `pm_` | Project | startswith |
-    | `projectgen` | Project | exact |
-    | `task` | Task | startswith |
-    | `gantt` | Gantt | startswith |
-    | `timeline` | Gantt | exact |
-    | `marketing`, `social_media` | Marketing | startswith |
-    | `content_calendar`, `email_marketing` | Marketing | exact |
-    | `schedule`, `shared`, `calendar` | Calendar | startswith |
-    | `to_do` | To Do | startswith |
-    | `checklist` | To Do | exact |
-    | `construction`, `production`, `order_mg` | Logistics | startswith |
-    | `logistics` | Logistics | exact |
-    | `general`, `workflow`, `dashboards` | General | startswith/exact |
-    | `kanban` | Competitors | exact |
-    | `tech` | Tech | exact |
-    | `planner`, `team`, `tracker`, `templates`, `all_categories` | Other | exact |
-
-11. **Fallback** — `comp_` prefix → "Competitors"; `agent_ai` prefix → "Other"; everything else → **"Other"**
-
-### 5.3 Computed Aggregate Clusters
-
-- **"All"** — Sum of ALL clusters for a given week
-- **"All Generic"** — Sum of all clusters EXCLUDING: Brand, Competitors, Agent - Work Agent, and ALL `Agent - *` clusters
+- **"All"** — Sum of ALL clusters
+- **"All exc. Brand"** — Computed in frontend JS (all except Brand)
+- **"All Generic"** — Sum excluding Brand, Competitors, Agent - Work Agent, and all `Agent - *` clusters
 
 ---
 
-## 6. Dashboard Tabs & Sections
+## 7. Tab-Specific Behavior
 
-### 6.1 Tab 1: 📊 WoW Report (Cluster-Level)
+### 7.1 Google WoW Tab
 
-**Filter Bar:**
-- **Cluster dropdown** — populated from `DATA` keys (includes "All", "All Generic", and all individual clusters)
-- **Week dropdown** — populated from weeks in selected cluster's data
+- **Cluster dropdown:** All clusters visible (including Agent clusters)
+- **KPI cards (12):** Spend, Impressions, Clicks, CTR, Hard Signups, CPS, %Work, Payers, CAC, VBB ROAS, Agents Created, CPAC
+- **Chart:** Toggleable metrics, each gets its own y-axis. Bars for volume metrics, lines for cost metrics.
+- **Table columns:** Week, Spend, Δ, Imp, Δ, Signups, CPS, Δ, Work SU, Work CPS, Δ, Agents Created, CPAC, Δ, Payers, CAC, VBB ROAS, Δ
+- **Cluster Comparison:** Quick-select buttons: Select all, Clear, Generic, Agentic Activity, Geo Clusters
 
-**KPI Cards (12, dynamic):**
-Spend, Impressions, Clicks, CTR, Hard Signups, CPS, %Work Signups, Payers, CAC, VBB ROAS, Agents Created, CPAC — each showing value for selected week with WoW delta arrow
+### 7.2 Bing WoW Tab
 
-**Chart:**
-- Chart.js line/bar chart
-- Toggleable metric buttons: Spend, Signups, CPS, Payers, CAC, VBB ROAS, Agents Created, CPAC, %Work
-- Shows selected metric over all weeks for current cluster
+- **Agent clusters are HIDDEN** from the dropdown and comparison section (but their data is included in "All" totals)
+- **No sub-header** — uses the general dashboard header only
+- **KPI cards (4):** Spend, Hard Signups, Hard Signup CPS, Work CPS — showing **aggregated totals** for selected date range with delta vs equivalent prior period
+- **Chart:** Bars for Spend/Impressions/Signups/Work SU, lines for CPS metrics. Each metric gets its own y-axis. Default active: Spend + Hard Signup CPS.
+- **Table columns:** Week, Spend, Δ, Imp, Δ, Hard Signups, Hard SU CPS, Δ, Work SU, Work CPS, Δ (NO Agents Created, CPAC, Payers, CAC, VBB ROAS)
+- **Cluster Comparison:** Quick-select buttons: Select all, Clear, Generic, Geo Clusters (no Agentic Activity button)
 
-**Weekly Trend Table:**
-- Columns: Week | Spend | Δ | Imp | Δ | Clicks | CTR | Signups | Δ | CPS | Work SU | %Work | Payers | Δ | CAC | VBB $ | VBB ROAS | AC | Δ | CPAC
-- Sortable columns (click header to sort)
+### 7.3 Geo Report Tab (Google only)
 
-**Cluster Comparison Section:**
-- Title: "🔍 Cluster Comparison"
-- Multi-select cluster pills (toggle each on/off)
-- Quick-select buttons: Select all, Clear, Geo Clusters, Agent Clusters
-- Date range filter (From/To)
-- Comparison table: Cluster | Spend | Imp | Clicks | CTR | Signups | CPS | %Work | Payers | CAC | VBB ROAS | AC | CPAC
-- Sortable by any column
-
-### 6.2 Tab 2: 🌍 Geo Report (Country-Level)
-
-**Filter Bar:**
-- **Brand/Non-Brand toggle** — two buttons switching between `GEO_DATA_BRAND` and `GEO_DATA_NONBRAND`
-- **Geo search dropdown** — autocomplete text input with dropdown list of countries
-- **Date range** — From/To date inputs
-
-**KPI Cards:** Same 12 metrics as WoW tab, for selected geo
-
-**Chart:** Same toggleable chart, for geo data
-
-**Weekly Trend Table:** Same columns as WoW tab
-
-**Geo Comparison Section:**
-- Title: "🔍 Geo Comparison"
-- Multi-select geo pills, quick-select buttons, date range filter
-- Comparison table with same columns, sortable
+- Brand/Non-Brand toggle
+- Geo search with autocomplete dropdown
+- Same 12 KPI cards as Google WoW
+- Country-level data from `geographic_view` resource
 
 ---
 
-## 7. JS Data Structures
+## 8. JS Data Structures
 
-### DATA (cluster-level)
-
+### DATA (Google cluster-level)
 ```js
 const DATA = {
   "Cluster Name": [
-    {
-      "spend": <float>,           // USD (already divided by 1M)
-      "imp": <int>,               // impressions
-      "clicks": <int>,
-      "signups": <float>,         // Hard Signup (MCC)
-      "work_signups": <float>,    // Hard signup Work goal (MCC)
-      "payers": <int>,            // Paying (MCC), rounded to int
-      "vbb_value": <float>,       // VBB dollar value
-      "agents_created": <float>,  // Agent Created (MCC)
-      "week": "YYYY-MM-DD"        // Wednesday date
-    },
-    // ... one entry per week
-  ],
-  // ... one entry per cluster
+    { "spend": <float>, "imp": <int>, "clicks": <int>, "signups": <float>,
+      "work_signups": <float>, "payers": <int>, "vbb_value": <float>,
+      "agents_created": <float>, "week": "YYYY-MM-DD" },
+    // ... one per week
+  ]
 };
 ```
 
-### GEO_DATA_BRAND / GEO_DATA_NONBRAND
+### BING_DATA (Bing cluster-level)
+```js
+const BING_DATA = {
+  "Cluster Name": [
+    { "spend": <float>, "imp": <int>, "clicks": <int>,
+      "signups": <float>, "work_signups": <float>, "week": "YYYY-MM-DD" },
+    // ... one per week (NO payers, vbb_value, agents_created)
+  ]
+};
+```
 
+### GEO_DATA_BRAND / GEO_DATA_NONBRAND (Google geo-level)
 ```js
 const GEO_DATA_BRAND = {
-  "Country Name": [
-    // same schema as DATA entries
-    { "spend": ..., "imp": ..., "clicks": ..., "signups": ..., "work_signups": ..., "payers": ..., "vbb_value": ..., "agents_created": ..., "week": "YYYY-MM-DD" },
-    // ...
-  ],
-  "All Geos": [ ... ],  // computed aggregate
-  // ...
+  "Country Name": [ /* same schema as DATA entries */ ],
+  "All Geos": [ ... ]  // computed aggregate
 };
-const GEO_DATA_NONBRAND = { /* identical structure */ };
 ```
-
----
-
-## 8. Geo Report — Data Pipeline
-
-Geo data is pulled **separately** from cluster data using a different GAQL resource:
-
-```sql
-SELECT geographic_view.country_criterion_id, segments.date,
-       campaign.name, metrics.cost_micros, metrics.impressions, metrics.clicks
-FROM geographic_view
-WHERE segments.date BETWEEN '{START_DATE}' AND '{end_date}'
-  AND campaign.advertising_channel_type = 'SEARCH'
-```
-
-- Country criterion IDs are resolved to country names via `geo_criterion_to_country()` — a hardcoded map of ~190 Google Ads criterion IDs
-- **Brand vs non-brand split:** Each campaign is classified via `extract_cluster()`:
-  - Brand account (`6073520942`) OR brand/comp keywords in name → **brand**
-  - Everything else → **nonbrand**
-- **"All Geos"** is a computed aggregate (sum of all individual geos per week)
-- Conversion metrics use the same GAQL queries but with `geographic_view` resource
 
 ---
 
 ## 9. Refresh Process
 
-### When
-
-- **Trigger:** Manual run of `refresh.py` (by Nymeria agent)
-- **Schedule:** Typically weekly or on-demand
-- **Duration:** ~3-5 minutes (API calls to 5 accounts × 2 query types + geo queries)
-
-### How
-
-1. `refresh.py` queries all 5 Google Ads accounts via Funnel Gate
-2. Campaign names are parsed through `extract_cluster()` to determine cluster
-3. Daily data is aggregated into Wednesday-Tuesday weekly buckets
-4. `DATA` JS constant in `index.html` is replaced via regex
-5. Geo data is pulled separately with geographic_view
-6. `GEO_DATA_BRAND` and `GEO_DATA_NONBRAND` constants are updated
-7. Changes are committed and pushed to `main` branch
-8. GitHub Pages auto-deploys within ~30 seconds
-
-### Command Flags
+### Google Refresh (`refresh.py`)
 
 | Command | What It Does |
 |---|---|
 | `python3 refresh.py` | Refreshes BOTH cluster data + geo data |
 | `python3 refresh.py --geo-only` | Refreshes ONLY geo data (faster) |
 
-### What refresh.py Updates
+- Queries 5 Google Ads accounts via Funnel Gate
+- Updates `DATA`, `GEO_DATA_BRAND`, `GEO_DATA_NONBRAND` in `index.html`
+- Git commit + push
 
-- ✅ `DATA` constant (cluster-level weekly data)
-- ✅ `GEO_DATA_BRAND` / `GEO_DATA_NONBRAND` constants
-- ✅ Git commit + push
+### Bing Refresh (`bing_refresh.py`)
 
-### What refresh.py Does NOT Update
+| Command | What It Does |
+|---|---|
+| `python3 bing_refresh.py` | Refreshes Bing cluster data |
 
+- Queries 3 Microsoft Ads accounts via bingads SDK (Reporting API)
+- Report 1: `CampaignPerformanceReportRequest` (spend, impressions, clicks)
+- Report 2: `GoalsAndFunnelsReportRequest` (conversions by GoalId)
+- **GoalsAndFunnels scope:** Must use `AccountThroughAdGroupReportScope` (not Campaign scope)
+- **Time object:** Must explicitly set `PredefinedTime = None` and `ReportTimeZone = None`
+- **Required columns:** Must include `AccountName` and `Goal` (otherwise `RequiredColumnsNotSelected` error)
+- **CSV parsing:** Header detection must match `"CampaignName"` with quotes (not just `Campaign`) to avoid matching report metadata lines
+- Updates `BING_DATA` in `index.html`
+- Git commit + push
+
+### What Refresh Does NOT Update
 - ❌ Dashboard layout/HTML structure
 - ❌ Chart.js configuration
-- ❌ KPI card definitions (those render dynamically from DATA)
+- ❌ KPI card definitions
 
 ---
 
@@ -392,7 +262,8 @@ WHERE segments.date BETWEEN '{START_DATE}' AND '{end_date}'
 ```
 monday-wow-dashboard/
 ├── index.html                  # Entire dashboard (HTML + CSS + JS + data)
-├── refresh.py                  # Data refresh script (pulls from Google Ads)
+├── refresh.py                  # Google Ads data refresh script
+├── bing_refresh.py             # Microsoft Ads (Bing) data refresh script
 ├── dashboard-spec.md           # This file
 ├── geo-wow-report.html         # Legacy standalone geo report
 ├── wm-analysis.html            # WM analysis page
@@ -407,31 +278,26 @@ monday-wow-dashboard/
 - **Color palette:** Green (#1D9E75) positive, Red (#D85A30) negative, Amber (#eda100) warnings
 - **Typography:** System fonts (-apple-system stack), 13px base
 - **Layout:** Max-width 1400px, centered
-- **Charts:** Chart.js 4.4.7 with custom dark theme configuration
-- **Tables:** Alternating row backgrounds, right-aligned numerics, sortable headers (click to sort)
-- **Tabs:** Two dashboard tabs (WoW Report / Geo Report) with toggle visibility
+- **Charts:** Chart.js 4.4.7, each metric gets own y-axis, max-height 320px, bars for volume + lines for cost
+- **Tables:** Alternating row backgrounds, right-aligned numerics
+- **Tabs:** Three dashboard tabs with green active indicator
+- **Cluster pills:** Purple on/off styling (#6366f1) in comparison sections
 
 ---
 
 ## 12. Adding New Components
 
 ### Adding a New Cluster
-
-1. Add keyword → cluster mapping to `KEYWORD_CLUSTERS` in `refresh.py`
-2. Run `refresh.py` to regenerate `DATA`
-3. Dashboard auto-discovers clusters from `DATA` keys — **no HTML changes needed**
-4. Update this spec with the new cluster
+1. Add keyword → cluster mapping to `KEYWORD_CLUSTERS` in both `refresh.py` and `bing_refresh.py`
+2. Run both refresh scripts
+3. Dashboard auto-discovers clusters from data keys — no HTML changes needed
+4. **Update this spec**
 
 ### Adding a New Metric
-
-1. **If from Google Ads:** Add GAQL field to queries in `refresh.py`, include in weekly data structure
-2. **If derived:** Add formula to frontend JS render functions
-3. Update KPI cards, chart toggles, and table columns in `index.html`
-4. Update this spec
-
-### Adding a New Geo
-
-Geos are **auto-discovered** from Google Ads `geographic_view` data. To support a new geo criterion ID, add the mapping to `geo_criterion_to_country()` in `refresh.py`.
+1. **Google:** Add GAQL field to queries in `refresh.py`, include in weekly data structure
+2. **Bing:** Add GoalId to `HARD_SIGNUPS_GOAL_IDS` or `WORK_SIGNUPS_GOAL_IDS` in `bing_refresh.py`
+3. Update frontend JS render functions, KPI cards, chart toggles, table columns
+4. **Update this spec**
 
 ---
 
@@ -439,4 +305,9 @@ Geos are **auto-discovered** from Google Ads `geographic_view` data. To support 
 
 | Date | Change |
 |---|---|
-| 2026-08-26 | Added this spec file and download button. Added Agent - PMO cluster (`agent_aipmo`). Added `agent_aipmo_work_process` → Agent - Work Process mapping (renamed cluster, aggregated with old `agent_aiwork_process`). |
+| 2026-08-27 | **Bing WoW tab added.** 3 Microsoft Ads accounts, Hard Signups (Goal 20117320+31018720) + Work Signups (Goal 31008558+31018719). Agent clusters hidden from Bing view. |
+| 2026-08-27 | **Geo clusters renamed to "Generic"** (e.g., "Canada Generic") to indicate comp exclusion. Comp/Brand always wins over geo. Note added to both views. |
+| 2026-08-27 | **Bing chart:** Bars for volume metrics, lines for CPS. Each metric gets own y-axis. Default: Spend + Hard Signup CPS. |
+| 2026-08-27 | **Bing KPIs:** Aggregate entire date range (not just last week). Delta vs equivalent prior period. |
+| 2026-08-27 | Renamed Bing "Signups"→"Hard Signups", "CPS"→"Hard Signup CPS". Removed Bing sub-header. |
+| 2026-08-26 | Added spec file and download button. Added Agent - PMO cluster. |
