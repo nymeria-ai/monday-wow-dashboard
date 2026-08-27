@@ -722,7 +722,6 @@ td {
             <button class="select-action" id="bing-comp-select-all">Select all</button>
             <button class="select-action" id="bing-comp-select-none">Clear</button>
             <button class="select-action" id="bing-comp-select-generic">Generic</button>
-            <button class="select-action" id="bing-comp-select-agents">Agentic Activity</button>
             <button class="select-action" id="bing-comp-select-geo">Geo Clusters</button>
         </div>
     </div>
@@ -1942,9 +1941,9 @@ function initBingReport() {
     const y = new Date(); y.setDate(y.getDate()-1);
     document.getElementById('bing-date-to').value = y.toISOString().slice(0,10);
 
-    // Build cluster dropdown
+    // Build cluster dropdown (exclude Agent clusters from Bing view)
     const sel = document.getElementById('bing-cluster-select');
-    const keys = Object.keys(BING_DATA).sort((a, b) => {
+    const keys = Object.keys(BING_DATA).filter(k => !k.startsWith('Agent - ')).sort((a, b) => {
         const order = {'All': 0, 'All exc. Brand': 1, 'All Generic': 2};
         const oa = order[a] ?? 99, ob = order[b] ?? 99;
         if (oa !== ob) return oa - ob;
@@ -1980,7 +1979,7 @@ function initBingReport() {
     document.getElementById('bing-comp-date-to').value = y.toISOString().slice(0,10);
 
     const exclude = new Set(['All', 'All Generic', 'All exc. Brand']);
-    const compClusters = Object.keys(BING_DATA).filter(k => !exclude.has(k)).sort();
+    const compClusters = Object.keys(BING_DATA).filter(k => !exclude.has(k) && !k.startsWith('Agent - ')).sort();
     const compContainer = document.getElementById('bing-comp-clusters');
     compClusters.forEach(k => {
         bingCompSelected.add(k);
@@ -2005,7 +2004,6 @@ function initBingReport() {
         renderBingComparison();
     });
     const BING_GENERIC = new Set(['Calendar','Gantt','General','Logistics','Marketing','Project','Task','To Do','Other']);
-    const BING_AGENTS = new Set(compClusters.filter(c => c.startsWith('Agent - ')));
     const BING_GEO = new Set(compClusters.filter(c => c.endsWith(' Generic')));
     function bingQuickSelect(preset) {
         bingCompSelected.clear();
@@ -2017,7 +2015,6 @@ function initBingReport() {
         renderBingComparison();
     }
     document.getElementById('bing-comp-select-generic').addEventListener('click', () => bingQuickSelect(BING_GENERIC));
-    document.getElementById('bing-comp-select-agents').addEventListener('click', () => bingQuickSelect(BING_AGENTS));
     document.getElementById('bing-comp-select-geo').addEventListener('click', () => bingQuickSelect(BING_GEO));
     document.getElementById('bing-comp-date-from').addEventListener('change', renderBingComparison);
     document.getElementById('bing-comp-date-to').addEventListener('change', renderBingComparison);
