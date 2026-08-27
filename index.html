@@ -1796,37 +1796,71 @@ function renderBingWoW(cluster) {
 
 function renderBingChart(cluster) {
     const rows = getBingFilteredRows(cluster);
+    if (!rows.length) return;
     const labels = rows.map(r => weekLabel(r.week));
+    const barMetricIds = new Set(['spend', 'imp', 'signups', 'work_signups']);
+    const active = BING_METRICS.filter(m => bingActiveMetrics.has(m.id));
+    const barActive = active.filter(m => barMetricIds.has(m.id));
+
     const datasets = [];
-    const barMetrics = new Set(['spend', 'imp', 'signups', 'work_signups']);
-    BING_METRICS.forEach(m => {
-        if (!bingActiveMetrics.has(m.id)) return;
+    const scales = {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#999', font: { size: 11 } } },
+    };
+
+    active.forEach((m, idx) => {
+        const axisId = 'y_' + m.id;
         let data;
         if (m.id === 'cps') data = rows.map(r => r.signups > 0 ? r.spend / r.signups : 0);
         else if (m.id === 'work_cps') data = rows.map(r => r.work_signups > 0 ? r.spend / r.work_signups : 0);
         else data = rows.map(r => r[m.id] || 0);
-        const isBar = barMetrics.has(m.id);
+        const isBar = barMetricIds.has(m.id);
+        const position = isBar ? 'left' : 'right';
+
         datasets.push({
-            type: isBar ? 'bar' : 'line',
-            label: m.label, data, borderColor: m.color,
-            backgroundColor: isBar ? m.color + '88' : m.color + '22',
-            yAxisID: m.axis, tension: 0.3, pointRadius: isBar ? 0 : 3, borderWidth: isBar ? 0 : 2,
-            order: isBar ? 2 : 1,
+            label: m.label, data, type: isBar ? 'bar' : 'line',
+            yAxisID: axisId,
+            backgroundColor: isBar ? m.color + '99' : 'transparent',
+            borderColor: m.color,
+            borderWidth: isBar ? 0 : 2.5,
+            pointRadius: 3, pointBackgroundColor: m.color,
+            tension: 0.3, order: isBar ? 2 : 1,
+            barPercentage: barActive.length > 1 ? 0.5 : 0.6,
+            categoryPercentage: barActive.length > 1 ? 0.8 : 0.7,
         });
+
+        scales[axisId] = {
+            type: 'linear', position,
+            display: active.length <= 3,
+            grid: { display: idx === 0, color: 'rgba(255,255,255,0.04)' },
+            ticks: { color: m.color, font: { size: 10 }, callback: v => m.fmt(v), maxTicksLimit: 5 },
+            beginAtZero: true,
+        };
     });
+
     if (bingChart) bingChart.destroy();
     document.getElementById('bing-chart-canvas').parentElement.style.height = '320px';
     document.getElementById('bing-chart-canvas').style.height = '320px';
     const ctx = document.getElementById('bing-chart-canvas').getContext('2d');
     bingChart = new Chart(ctx, {
+        type: 'bar',
         data: { labels, datasets },
         options: {
-            responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-            scales: {
-                y: { position: 'left', ticks: { color: '#999' }, grid: { color: '#333' } },
-                y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#999' } },
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1a1a1a', borderColor: '#333', borderWidth: 1,
+                    titleColor: '#e8e8e8', bodyColor: '#ccc', padding: 10,
+                    callbacks: {
+                        label: function(ctx) {
+                            const m = BING_METRICS.find(x => x.label === ctx.dataset.label);
+                            return ctx.dataset.label + ': ' + (m ? m.fmt(ctx.raw) : ctx.raw);
+                        }
+                    }
+                }
             },
-            plugins: { legend: { labels: { color: '#ccc', font: { size: 11 } } } },
+            scales,
         }
     });
 }
