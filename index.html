@@ -181,7 +181,7 @@ td {
     margin-right: 5px;
     vertical-align: middle;
 }
-#chart-canvas {
+#chart-canvas, #bing-chart-canvas {
     width: 100% !important;
     max-height: 320px;
 }
@@ -1805,11 +1805,13 @@ function renderBingChart(cluster) {
         datasets.push({ label: m.label, data, borderColor: m.color, backgroundColor: m.color + '22', yAxisID: m.axis, tension: 0.3, pointRadius: 3, borderWidth: 2 });
     });
     if (bingChart) bingChart.destroy();
+    document.getElementById('bing-chart-canvas').parentElement.style.height = '320px';
+    document.getElementById('bing-chart-canvas').style.height = '320px';
     const ctx = document.getElementById('bing-chart-canvas').getContext('2d');
     bingChart = new Chart(ctx, {
         type: 'line', data: { labels, datasets },
         options: {
-            responsive: true, interaction: { mode: 'index', intersect: false },
+            responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
             scales: {
                 y: { position: 'left', ticks: { color: '#999' }, grid: { color: '#333' } },
                 y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#999' } },
