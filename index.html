@@ -1734,25 +1734,30 @@ function renderBingWoW(cluster) {
         return;
     }
 
-    function isFullWeek(row) {
-        const ws = new Date(row.week + 'T00:00:00');
-        const we = new Date(ws); we.setDate(we.getDate() + 6);
-        return we < new Date();
-    }
-    const fullRows = rows.filter(isFullWeek);
-    const last = fullRows.length ? fullRows[fullRows.length - 1] : rows[rows.length - 1];
-    const prev = fullRows.length > 1 ? fullRows[fullRows.length - 2] : (rows.length > 1 ? rows[rows.length - 2] : null);
+    // KPIs: aggregate over entire selected date range, delta vs equivalent prior period
+    const totalSpend = rows.reduce((s, r) => s + r.spend, 0);
+    const totalSignups = rows.reduce((s, r) => s + r.signups, 0);
+    const totalWorkSU = rows.reduce((s, r) => s + r.work_signups, 0);
+    const totalCps = totalSignups > 0 ? totalSpend / totalSignups : 0;
+    const totalWCps = totalWorkSU > 0 ? totalSpend / totalWorkSU : 0;
 
-    const lastCps = last.signups > 0 ? last.spend / last.signups : 0;
-    const prevCps = prev && prev.signups > 0 ? prev.spend / prev.signups : 0;
-    const lastWCps = last.work_signups > 0 ? last.spend / last.work_signups : 0;
-    const prevWCps = prev && prev.work_signups > 0 ? prev.spend / prev.work_signups : 0;
+    // Prior period: same number of weeks, immediately before the selected range
+    const allRows = getBingRows(cluster);
+    const rangeWeeks = rows.map(r => r.week);
+    const minWeek = rangeWeeks[0];
+    const nWeeks = rows.length;
+    const priorRows = allRows.filter(r => r.week < minWeek).slice(-nWeeks);
+    const priorSpend = priorRows.reduce((s, r) => s + r.spend, 0);
+    const priorSignups = priorRows.reduce((s, r) => s + r.signups, 0);
+    const priorWorkSU = priorRows.reduce((s, r) => s + r.work_signups, 0);
+    const priorCps = priorSignups > 0 ? priorSpend / priorSignups : 0;
+    const priorWCps = priorWorkSU > 0 ? priorSpend / priorWorkSU : 0;
 
     const kpis = [
-        { label: 'Spend', val: fmtMoney(last.spend), d: delta(last.spend, prev?.spend), inv: false },
-        { label: 'Signups', val: fmt(last.signups), d: delta(last.signups, prev?.signups), inv: false },
-        { label: 'CPS', val: lastCps > 0 ? '$'+Math.round(lastCps).toLocaleString('en-US') : '—', d: delta(lastCps, prevCps), inv: true },
-        { label: 'Work CPS', val: lastWCps > 0 ? '$'+Math.round(lastWCps).toLocaleString('en-US') : '—', d: delta(lastWCps, prevWCps), inv: true },
+        { label: 'Spend', val: fmtMoney(totalSpend), d: priorSpend > 0 ? delta(totalSpend, priorSpend) : { pct: null }, inv: false },
+        { label: 'Signups', val: fmt(totalSignups), d: priorSignups > 0 ? delta(totalSignups, priorSignups) : { pct: null }, inv: false },
+        { label: 'CPS', val: totalCps > 0 ? '$'+Math.round(totalCps).toLocaleString('en-US') : '—', d: priorCps > 0 ? delta(totalCps, priorCps) : { pct: null }, inv: true },
+        { label: 'Work CPS', val: totalWCps > 0 ? '$'+Math.round(totalWCps).toLocaleString('en-US') : '—', d: priorWCps > 0 ? delta(totalWCps, priorWCps) : { pct: null }, inv: true },
     ];
 
     document.getElementById('bing-kpi-grid').innerHTML = kpis.map(k => {
