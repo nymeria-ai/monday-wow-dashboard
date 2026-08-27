@@ -127,68 +127,90 @@ def match_keyword_cluster(cluster_val: str) -> str | None:
     return None
 
 
-def extract_cluster(campaign_name: str, account_id: str) -> str | None:
-    """Extract dashboard cluster from campaign name. Returns None to skip."""
+def extract_clusters(campaign_name: str, account_id: str) -> list[str]:
+    """Extract dashboard cluster(s) from campaign name.
+    Returns a list of clusters (may be >1 for geo+comp campaigns).
+    Returns empty list to skip."""
     base_name = campaign_name.split(" ")[0] if " " in campaign_name else campaign_name
     parts = base_name.split("-")
     parts_lower = [p.lower() for p in parts]
 
     # Exclusions
     if any(excl in p for p in parts_lower for excl in CAMPAIGN_EXCLUSIONS):
-        return None
+        return []
     if any(p in ("lead_management", "account_management", "lead_agent") for p in parts_lower):
-        return None
+        return []
 
-    # Brand / Comp
-    if any(p == "brand" or p.startswith("brand_") or p == "brands_t" for p in parts_lower):
-        return "Brand"
-    if any(p.startswith("comp") for p in parts_lower):
-        return "Competitors"
+    # Detect brand / comp flags
+    is_brand = any(p == "brand" or p.startswith("brand_") or p == "brands_t" for p in parts_lower)
+    is_comp = any(p.startswith("comp") for p in parts_lower)
 
-    if len(parts) < 3:
-        return "Other"
+    if is_brand and not is_comp:
+        # Detect geo for brand campaigns too
+        geo_cluster = None
+        if any(p.lower() == "eu1" for p in parts):
+            geo_cluster = "EU"
+        else:
+            region = parts[0].lower()
+            if region in GEO_CLUSTERS:
+                geo_cluster = GEO_CLUSTERS[region]
+            elif region == "ww":
+                geo_cluster = "WW"
+        return ["Brand", geo_cluster] if geo_cluster else ["Brand"]
 
-    # EU1 detection
+    if len(parts) < 3 and not is_comp:
+        return ["Other"]
+
+    # Detect geo
+    geo_cluster = None
     if any(p.lower() == "eu1" for p in parts):
-        return "EU"
+        geo_cluster = "EU"
+    else:
+        region = parts[0].lower()
+        if region in GEO_CLUSTERS:
+            geo_cluster = GEO_CLUSTERS[region]
+        elif region == "ww":
+            geo_cluster = "WW"
 
-    region = parts[0].lower()
+    if is_comp:
+        clusters = ["Competitors"]
+        if geo_cluster:
+            clusters.append(geo_cluster)
+        return clusters
 
-    # Detect format
+    # Parse cluster_val
     if len(parts) >= 6 and parts[2].lower() == "prm":
         cluster_val = parts[5].lower()
     elif len(parts) >= 3 and parts[1].lower() == "s":
         cluster_val = parts[2].lower()
     else:
-        return "Other"
+        return [geo_cluster] if geo_cluster else ["Other"]
 
     if "crm" in cluster_val:
-        return None
+        return []
 
-    # AI Max campaigns
     if cluster_val in ("ai", "max"):
-        return GEO_CLUSTERS.get(region, "Other")
+        return [geo_cluster] if geo_cluster else ["Other"]
 
-    # Geo-based mapping
-    if region in GEO_CLUSTERS:
-        return GEO_CLUSTERS[region]
+    if geo_cluster:
+        return [geo_cluster]
 
-    # WW region
-    if region == "ww":
-        return "WW"
-
-    # Keyword matching
     matched = match_keyword_cluster(cluster_val)
     if matched:
-        return matched
+        return [matched]
 
-    # Fallback
     if cluster_val.startswith("comp_"):
-        return "Competitors"
+        return ["Competitors"]
     if cluster_val.startswith("agent_ai"):
-        return "Other"
+        return ["Other"]
 
-    return "Other"
+    return ["Other"]
+
+
+def extract_cluster(campaign_name: str, account_id: str) -> str | None:
+    """Legacy single-cluster wrapper."""
+    clusters = extract_clusters(campaign_name, account_id)
+    return clusters[0] if clusters else None
 
 
 def week_start_wed(date_str: str) -> str:
@@ -289,6 +311,8 @@ def pull_data():
     cluster_data = defaultdict(lambda: defaultdict(lambda: {
         "spend": 0, "imp": 0, "clicks": 0, "signups": 0, "work_signups": 0
     }))
+    raw_perf = {}   # (camp_name, date) -> {spend, imp, clicks, clusters}
+    raw_conv = {}   # (camp_name, date, goal_id) -> {metric, conversions, clusters}
 
     for acct_id, acct_name in ACCOUNTS.items():
         print(f"\n=== {acct_name} ({acct_id}) ===")
@@ -367,17 +391,22 @@ def pull_data():
             if campaign_type and 'Search' not in campaign_type and 'search' not in campaign_type.lower():
                 continue
 
-            cluster = extract_cluster(camp_name, acct_id)
-            if cluster is None:
+            clusters = extract_clusters(camp_name, acct_id)
+            if not clusters:
                 continue
 
             if not date_str:
                 continue
 
             week = week_start_wed(date_str)
-            cluster_data[cluster][week]["spend"] += spend
-            cluster_data[cluster][week]["imp"] += imps
-            cluster_data[cluster][week]["clicks"] += clicks
+            raw_key = (camp_name, date_str)
+            if raw_key not in raw_perf:
+                raw_perf[raw_key] = {"spend": spend, "imp": imps, "clicks": clicks, "clusters": clusters}
+
+            for cluster in clusters:
+                cluster_data[cluster][week]["spend"] += spend
+                cluster_data[cluster][week]["imp"] += imps
+                cluster_data[cluster][week]["clicks"] += clicks
 
         # ── Report 2: Goals and Funnels (conversions by Goal ID) ──
         print("  Pulling goals & funnels report...")
@@ -432,44 +461,83 @@ def pull_data():
             if not camp_name or not date_str:
                 continue
 
-            cluster = extract_cluster(camp_name, acct_id)
-            if cluster is None:
-                continue
-            if not date_str:
+            clusters = extract_clusters(camp_name, acct_id)
+            if not clusters:
                 continue
 
             week = week_start_wed(date_str)
-
+            metric = None
             if goal_id in HARD_SIGNUPS_GOAL_IDS:
-                cluster_data[cluster][week]["signups"] += conversions
+                metric = "signups"
             elif goal_id in WORK_SIGNUPS_GOAL_IDS:
-                cluster_data[cluster][week]["work_signups"] += conversions
-
-    return cluster_data
-
-
-def compute_aggregates(cluster_data: dict) -> dict:
-    """Compute 'All' and 'All Generic' aggregates."""
-    all_weeks = set()
-    for weeks in cluster_data.values():
-        all_weeks.update(weeks.keys())
-
-    EXCLUDED_FROM_GENERIC = {"All", "All exc. Brand", "All Generic", "Brand", "Competitors", "Agent - Work Agent"}
-
-    for week in sorted(all_weeks):
-        totals = {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "work_signups": 0}
-        generic_totals = {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "work_signups": 0}
-        for cluster_name, weeks in cluster_data.items():
-            if cluster_name in ("All", "All exc. Brand", "All Generic"):
+                metric = "work_signups"
+            if not metric:
                 continue
-            if week in weeks:
-                for k in totals:
-                    totals[k] += weeks[week][k]
-                if cluster_name not in EXCLUDED_FROM_GENERIC and not cluster_name.startswith("Agent"):
-                    for k in generic_totals:
-                        generic_totals[k] += weeks[week][k]
-        cluster_data["All"][week] = totals
-        cluster_data["All Generic"][week] = generic_totals
+
+            raw_conv_key = (camp_name, date_str, goal_id)
+            if raw_conv_key not in raw_conv:
+                raw_conv[raw_conv_key] = {"metric": metric, "conversions": conversions, "clusters": clusters}
+
+            for cluster in clusters:
+                cluster_data[cluster][week][metric] += conversions
+
+    return cluster_data, raw_perf, raw_conv
+
+
+def compute_aggregates(cluster_data: dict, raw_perf: dict = None, raw_conv: dict = None) -> dict:
+    """Compute 'All' and 'All Generic' aggregates.
+    When raw data is provided, uses deduped per-campaign data
+    to avoid double-counting multi-cluster campaigns."""
+    GENERIC_EXCLUDED = {"Brand", "Competitors", "Agent - Work Agent"}
+
+    if raw_perf is not None:
+        all_totals = defaultdict(lambda: {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "work_signups": 0})
+        generic_totals = defaultdict(lambda: {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "work_signups": 0})
+
+        for (camp_name, date), data in raw_perf.items():
+            week = week_start_wed(date)
+            all_totals[week]["spend"] += data["spend"]
+            all_totals[week]["imp"] += data["imp"]
+            all_totals[week]["clicks"] += data["clicks"]
+            clusters = data["clusters"]
+            is_generic = not any(c in GENERIC_EXCLUDED or c.startswith("Agent") for c in clusters)
+            if is_generic:
+                generic_totals[week]["spend"] += data["spend"]
+                generic_totals[week]["imp"] += data["imp"]
+                generic_totals[week]["clicks"] += data["clicks"]
+
+        if raw_conv:
+            for (camp_name, date, goal_id), data in raw_conv.items():
+                week = week_start_wed(date)
+                mk = data["metric"]
+                all_totals[week][mk] += data["conversions"]
+                clusters = data["clusters"]
+                is_generic = not any(c in GENERIC_EXCLUDED or c.startswith("Agent") for c in clusters)
+                if is_generic:
+                    generic_totals[week][mk] += data["conversions"]
+
+        for week in all_totals:
+            cluster_data["All"][week] = all_totals[week]
+        for week in generic_totals:
+            cluster_data["All Generic"][week] = generic_totals[week]
+    else:
+        all_weeks = set()
+        for weeks in cluster_data.values():
+            all_weeks.update(weeks.keys())
+        for week in sorted(all_weeks):
+            totals = {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "work_signups": 0}
+            gen_totals = {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "work_signups": 0}
+            for cluster_name, weeks in cluster_data.items():
+                if cluster_name in ("All", "All exc. Brand", "All Generic"):
+                    continue
+                if week in weeks:
+                    for k in totals:
+                        totals[k] += weeks[week][k]
+                    if cluster_name not in GENERIC_EXCLUDED and not cluster_name.startswith("Agent"):
+                        for k in gen_totals:
+                            gen_totals[k] += weeks[week][k]
+            cluster_data["All"][week] = totals
+            cluster_data["All Generic"][week] = gen_totals
 
     return cluster_data
 
@@ -544,8 +612,8 @@ def main():
     print("🔄 Bing WoW Dashboard Refresh")
     print("=" * 50)
 
-    cluster_data = pull_data()
-    cluster_data = compute_aggregates(cluster_data)
+    cluster_data, raw_perf, raw_conv = pull_data()
+    cluster_data = compute_aggregates(cluster_data, raw_perf, raw_conv)
 
     # Summary
     print(f"\n📊 Summary: {len(cluster_data)} clusters")
