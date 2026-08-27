@@ -427,6 +427,7 @@ td {
 <div class="dashboard-tabs">
     <button class="dash-tab active" data-tab="wow-tab">📊 WoW Report</button>
     <button class="dash-tab" data-tab="geo-tab">🌍 Geo Report</button>
+    <button class="dash-tab" data-tab="bing-tab">📊 Bing WoW</button>
 </div>
 
 <div id="wow-tab" class="tab-content active">
@@ -647,6 +648,105 @@ td {
 </div>
 
 </div><!-- end geo-tab -->
+
+<div id="bing-tab" class="tab-content">
+
+<h2 style="font-size:18px;margin-bottom:4px">📊 Bing WoW Report</h2>
+<p class="subtitle">Wed–Tue weeks · Search campaigns across 3 Bing accounts</p>
+
+<div class="filter-bar" style="display:flex;flex-wrap:wrap;align-items:center;gap:16px">
+    <div>
+        <label for="bing-cluster-select">Cluster</label>
+        <select id="bing-cluster-select"></select>
+    </div>
+    <div>
+        <label for="bing-date-from">From</label>
+        <input type="date" id="bing-date-from" style="background:var(--surface-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:13px;font-family:inherit;outline:none">
+    </div>
+    <div>
+        <label for="bing-date-to">To</label>
+        <input type="date" id="bing-date-to" style="background:var(--surface-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:13px;font-family:inherit;outline:none">
+    </div>
+</div>
+
+<div id="bing-kpi-container" class="kpi-block">
+    <div id="bing-kpi-grid" class="kpi-grid"></div>
+</div>
+
+<div class="chart-section">
+    <div class="chart-toggles" id="bing-chart-toggles"></div>
+    <canvas id="bing-chart-canvas"></canvas>
+</div>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Week</th>
+                <th class="right">Spend</th>
+                <th class="right">Δ</th>
+                <th class="right">Impressions</th>
+                <th class="right">Δ</th>
+                <th class="right">Signups</th>
+                <th class="right">CPS</th>
+                <th class="right">Δ</th>
+                <th class="right">Work SU</th>
+                <th class="right">Work CPS</th>
+                <th class="right">Δ</th>
+            </tr>
+        </thead>
+        <tbody id="bing-table-body"></tbody>
+    </table>
+</div>
+
+<hr class="section-divider">
+
+<div class="comp-header">
+    <h2>🔍 Cluster Comparison</h2>
+</div>
+<p class="comp-subtitle">Aggregated Bing metrics across selected clusters for a chosen timeframe</p>
+
+<div class="comp-controls">
+    <div class="comp-control-group">
+        <span class="ctrl-label">Timeframe</span>
+        <div class="comp-timeframe" id="bing-comp-timeframe">
+            <span class="comp-date-label">From</span>
+            <input type="date" id="bing-comp-date-from" class="comp-date-input">
+            <span class="comp-date-label">To</span>
+            <input type="date" id="bing-comp-date-to" class="comp-date-input">
+        </div>
+    </div>
+    <div class="comp-control-group" style="flex:1;min-width:300px">
+        <span class="ctrl-label">Clusters</span>
+        <div class="comp-clusters" id="bing-comp-clusters"></div>
+        <div class="select-actions">
+            <button class="select-action" id="bing-comp-select-all">Select all</button>
+            <button class="select-action" id="bing-comp-select-none">Clear</button>
+            <button class="select-action" id="bing-comp-select-generic">Generic</button>
+        </div>
+    </div>
+</div>
+
+<div class="comp-table-wrap">
+    <table>
+        <thead>
+            <tr id="bing-comp-thead-row">
+                <th>Cluster</th>
+                <th class="right sortable sort-active" data-sort="spend">Spend <span class="sort-arrow">▼</span></th>
+                <th class="right sortable" data-sort="imp">Impressions</th>
+                <th class="right sortable" data-sort="cpc">Avg CPC</th>
+                <th class="right sortable" data-sort="signups">Hard Signups</th>
+                <th class="right sortable" data-sort="cr">CR to SU</th>
+                <th class="right sortable" data-sort="cps">CPS</th>
+                <th class="right sortable" data-sort="work_signups">Work Signups</th>
+                <th class="right sortable" data-sort="work_cps">Work CPS</th>
+            </tr>
+        </thead>
+        <tbody id="bing-comp-table-body"></tbody>
+    </table>
+</div>
+
+</div><!-- end bing-tab -->
 
 
 <script>
@@ -1257,6 +1357,7 @@ document.querySelectorAll('.dash-tab').forEach(tab => {
         tab.classList.add('active');
         document.getElementById(tab.dataset.tab).classList.add('active');
         if (tab.dataset.tab === 'geo-tab') initGeoReport();
+        if (tab.dataset.tab === 'bing-tab') initBingReport();
     });
 });
 
@@ -1589,6 +1690,302 @@ function initGeoReport() {
     rebuildGeoCompPills();
     refreshGeoView();
     renderGeoComparison();
+}
+
+// ══════════════════════════════════════════════════════════════
+// BING WOW TAB
+// ══════════════════════════════════════════════════════════════
+
+const BING_DATA = {"Agent - Legal":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":2.0,"work_signups":2.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-08-26"}],"Agent - Note Taker":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":1.0,"work_signups":1.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-08-26"}],"Agent - Work Agent":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":3.0,"work_signups":0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-08-26"}],"All":[{"spend":0,"imp":0,"clicks":0,"signups":558.0,"work_signups":423.0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":1259.0,"work_signups":904.0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":1152.0,"work_signups":874.0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":1169.0,"work_signups":891.0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":1030.0,"work_signups":790.0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":1094.0,"work_signups":859.0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":1134.0,"work_signups":940.0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":1141.0,"work_signups":897.0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":1073.0,"work_signups":834.0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":1036.0,"work_signups":777.0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":2104.0,"work_signups":1385.0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":3121.0,"work_signups":1702.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":2780.0,"work_signups":1441.0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":596.0,"work_signups":310.0,"week":"2026-08-26"}],"All Generic":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":1.0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":10.0,"work_signups":5.0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":4.0,"work_signups":3.0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":2.0,"work_signups":2.0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":784.0,"work_signups":404.0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":1625.0,"work_signups":686.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":1677.0,"work_signups":699.0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":337.0,"work_signups":144.0,"week":"2026-08-26"}],"Brand":[{"spend":0,"imp":0,"clicks":0,"signups":558.0,"work_signups":423.0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":1259.0,"work_signups":904.0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":1152.0,"work_signups":874.0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":1169.0,"work_signups":891.0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":1030.0,"work_signups":790.0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":1094.0,"work_signups":859.0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":1131.0,"work_signups":940.0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":1130.0,"work_signups":891.0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":1068.0,"work_signups":830.0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":1033.0,"work_signups":774.0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":1002.0,"work_signups":791.0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":1025.0,"work_signups":770.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":749.0,"work_signups":575.0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":173.0,"work_signups":125.0,"week":"2026-08-26"}],"Brazil":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":38.0,"work_signups":27.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":86.0,"work_signups":36.0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":28.0,"work_signups":13.0,"week":"2026-08-26"}],"Calendar":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":1.0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":2.0,"work_signups":0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":2.0,"work_signups":2.0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":138.0,"work_signups":57.0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":362.0,"work_signups":134.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":480.0,"work_signups":164.0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":94.0,"work_signups":37.0,"week":"2026-08-26"}],"Canada":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":52.0,"work_signups":28.0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":113.0,"work_signups":41.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":107.0,"work_signups":39.0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":15.0,"work_signups":6.0,"week":"2026-08-26"}],"Competitors":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0.0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":2.0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":1.0,"work_signups":1.0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":1.0,"work_signups":1.0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":1.0,"work_signups":1.0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":318.0,"work_signups":190.0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":465.0,"work_signups":243.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":354.0,"work_signups":167.0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":86.0,"work_signups":41.0,"week":"2026-08-26"}],"DACH":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":11.0,"work_signups":7.0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":18.0,"work_signups":14.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":13.0,"work_signups":12.0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-08-26"}],"EU":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":8.0,"work_signups":4.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-08-26"}],"France":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":17.0,"work_signups":10.0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":19.0,"work_signups":12.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":20.0,"work_signups":14.0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":3.0,"work_signups":1.0,"week":"2026-08-26"}],"Gantt":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":1.0,"work_signups":0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":58.0,"work_signups":24.0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":69.0,"work_signups":32.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":58.0,"work_signups":36.0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":8.0,"work_signups":6.0,"week":"2026-08-26"}],"General":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":52.0,"work_signups":36.0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":383.0,"work_signups":102.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":223.0,"work_signups":58.0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":58.0,"work_signups":18.0,"week":"2026-08-26"}],"LATAM":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":32.0,"work_signups":20.0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":78.0,"work_signups":34.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":138.0,"work_signups":63.0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":32.0,"work_signups":11.0,"week":"2026-08-26"}],"Logistics":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":6.0,"work_signups":5.0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":15.0,"work_signups":7.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":17.0,"work_signups":15.0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":5.0,"work_signups":5.0,"week":"2026-08-26"}],"Marketing":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":2.0,"work_signups":2.0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":1.0,"work_signups":0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":2.0,"work_signups":2.0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":39.0,"work_signups":27.0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":42.0,"work_signups":20.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":66.0,"work_signups":43.0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":19.0,"work_signups":12.0,"week":"2026-08-26"}],"Other":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":13.0,"work_signups":9.0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":3.0,"work_signups":3.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-08-26"}],"Project":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":1.0,"work_signups":0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":112.0,"work_signups":75.0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":94.0,"work_signups":64.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":60.0,"work_signups":40.0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":11.0,"work_signups":10.0,"week":"2026-08-26"}],"Task":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":114.0,"work_signups":42.0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":125.0,"work_signups":64.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":106.0,"work_signups":29.0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":26.0,"work_signups":4.0,"week":"2026-08-26"}],"To Do":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":4.0,"work_signups":3.0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":1.0,"work_signups":1.0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":0.0,"work_signups":0.0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":99.0,"work_signups":43.0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":149.0,"work_signups":68.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":123.0,"work_signups":51.0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":25.0,"work_signups":12.0,"week":"2026-08-26"}],"WW":[{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-05-27"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-03"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-10"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-17"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-06-24"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-01"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-08"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-15"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-22"},{"spend":0,"imp":0,"clicks":0,"signups":0,"work_signups":0,"week":"2026-07-29"},{"spend":0,"imp":0,"clicks":0,"signups":41.0,"work_signups":21.0,"week":"2026-08-05"},{"spend":0,"imp":0,"clicks":0,"signups":109.0,"work_signups":60.0,"week":"2026-08-12"},{"spend":0,"imp":0,"clicks":0,"signups":180.0,"work_signups":99.0,"week":"2026-08-19"},{"spend":0,"imp":0,"clicks":0,"signups":13.0,"work_signups":9.0,"week":"2026-08-26"}]};
+
+let bingInitialized = false;
+let bingChart = null;
+let bingCompSortKey = 'spend';
+let bingCompSortDir = -1;
+const bingCompSelected = new Set();
+
+const BING_METRICS = [
+    { id: 'spend', label: 'Spend', color: '#6c5ce7', fmt: v => '$'+Math.round(v).toLocaleString('en-US'), axis: 'y' },
+    { id: 'imp', label: 'Impressions', color: '#00b894', fmt: v => v.toLocaleString('en-US'), axis: 'y1' },
+    { id: 'signups', label: 'Signups', color: '#fdcb6e', fmt: v => v.toFixed(0), axis: 'y1' },
+    { id: 'cps', label: 'CPS', color: '#e17055', fmt: v => '$'+v.toFixed(0), axis: 'y' },
+    { id: 'work_signups', label: 'Work SU', color: '#74b9ff', fmt: v => v.toFixed(0), axis: 'y1' },
+    { id: 'work_cps', label: 'Work CPS', color: '#fd79a8', fmt: v => '$'+v.toFixed(0), axis: 'y' },
+];
+const bingActiveMetrics = new Set(['spend', 'signups']);
+
+function getBingRows(cluster) { return BING_DATA[cluster] || []; }
+function getBingFilteredRows(cluster) {
+    let rows = getBingRows(cluster);
+    const f = document.getElementById('bing-date-from').value;
+    const t = document.getElementById('bing-date-to').value;
+    if (f) rows = rows.filter(r => r.week >= f);
+    if (t) rows = rows.filter(r => r.week <= t);
+    return rows;
+}
+
+function renderBingWoW(cluster) {
+    const rows = getBingFilteredRows(cluster);
+    if (!rows.length) {
+        document.getElementById('bing-kpi-grid').innerHTML = '<div class="kpi-card"><div class="kpi-label">No data</div></div>';
+        document.getElementById('bing-table-body').innerHTML = '';
+        return;
+    }
+
+    function isFullWeek(row) {
+        const ws = new Date(row.week + 'T00:00:00');
+        const we = new Date(ws); we.setDate(we.getDate() + 6);
+        return we < new Date();
+    }
+    const fullRows = rows.filter(isFullWeek);
+    const last = fullRows.length ? fullRows[fullRows.length - 1] : rows[rows.length - 1];
+    const prev = fullRows.length > 1 ? fullRows[fullRows.length - 2] : (rows.length > 1 ? rows[rows.length - 2] : null);
+
+    const lastCps = last.signups > 0 ? last.spend / last.signups : 0;
+    const prevCps = prev && prev.signups > 0 ? prev.spend / prev.signups : 0;
+    const lastWCps = last.work_signups > 0 ? last.spend / last.work_signups : 0;
+    const prevWCps = prev && prev.work_signups > 0 ? prev.spend / prev.work_signups : 0;
+
+    const kpis = [
+        { label: 'Spend', val: fmtMoney(last.spend), d: delta(last.spend, prev?.spend), inv: false },
+        { label: 'Signups', val: fmt(last.signups), d: delta(last.signups, prev?.signups), inv: false },
+        { label: 'CPS', val: lastCps > 0 ? '$'+Math.round(lastCps).toLocaleString('en-US') : '—', d: delta(lastCps, prevCps), inv: true },
+        { label: 'Work CPS', val: lastWCps > 0 ? '$'+Math.round(lastWCps).toLocaleString('en-US') : '—', d: delta(lastWCps, prevWCps), inv: true },
+    ];
+
+    document.getElementById('bing-kpi-grid').innerHTML = kpis.map(k => {
+        const dHtml = k.d.pct != null ? deltaHtml(k.d.pct, k.inv) : '<span class="neu">—</span>';
+        return `<div class="kpi-card">
+            <div class="kpi-label">${k.label}</div>
+            <div class="kpi-val">${k.val}</div>
+            <div class="kpi-delta">${dHtml}</div>
+        </div>`;
+    }).join('');
+
+    // Table
+    let html = rows.map((r, i) => {
+        const p = i > 0 ? rows[i-1] : null;
+        const cps = r.signups > 0 ? r.spend / r.signups : 0;
+        const prevCps2 = p && p.signups > 0 ? p.spend / p.signups : 0;
+        const wcps = r.work_signups > 0 ? r.spend / r.work_signups : 0;
+        const prevWCps2 = p && p.work_signups > 0 ? p.spend / p.work_signups : 0;
+
+        const spendD = i > 0 ? delta(r.spend, p.spend) : { pct: null };
+        const impD = i > 0 ? delta(r.imp, p.imp) : { pct: null };
+        const cpsD = i > 0 && cps > 0 && prevCps2 > 0 ? delta(cps, prevCps2) : { pct: null };
+        const wcpsD = i > 0 && wcps > 0 && prevWCps2 > 0 ? delta(wcps, prevWCps2) : { pct: null };
+
+        return `<tr class="${i%2?'tr-alt':''}">
+            <td class="week-cell">${weekLabel(r.week)}</td>
+            <td class="right">${fmtMoney(r.spend)}</td>
+            <td class="right">${deltaHtml(spendD.pct, false)}</td>
+            <td class="right">${fmt(r.imp)}</td>
+            <td class="right">${deltaHtml(impD.pct, false)}</td>
+            <td class="right">${fmt(r.signups)}</td>
+            <td class="right">${cps > 0 ? '$'+Math.round(cps).toLocaleString('en-US') : '—'}</td>
+            <td class="right">${i > 0 && cps > 0 && prevCps2 > 0 ? deltaHtml(cpsD.pct, true) : ''}</td>
+            <td class="right">${fmt(r.work_signups)}</td>
+            <td class="right">${wcps > 0 ? '$'+Math.round(wcps).toLocaleString('en-US') : '—'}</td>
+            <td class="right">${i > 0 && wcps > 0 && prevWCps2 > 0 ? deltaHtml(wcpsD.pct, true) : ''}</td>
+        </tr>`;
+    }).join('');
+    document.getElementById('bing-table-body').innerHTML = html;
+}
+
+function renderBingChart(cluster) {
+    const rows = getBingFilteredRows(cluster);
+    const labels = rows.map(r => weekLabel(r.week));
+    const datasets = [];
+    BING_METRICS.forEach(m => {
+        if (!bingActiveMetrics.has(m.id)) return;
+        let data;
+        if (m.id === 'cps') data = rows.map(r => r.signups > 0 ? r.spend / r.signups : 0);
+        else if (m.id === 'work_cps') data = rows.map(r => r.work_signups > 0 ? r.spend / r.work_signups : 0);
+        else data = rows.map(r => r[m.id] || 0);
+        datasets.push({ label: m.label, data, borderColor: m.color, backgroundColor: m.color + '22', yAxisID: m.axis, tension: 0.3, pointRadius: 3, borderWidth: 2 });
+    });
+    if (bingChart) bingChart.destroy();
+    const ctx = document.getElementById('bing-chart-canvas').getContext('2d');
+    bingChart = new Chart(ctx, {
+        type: 'line', data: { labels, datasets },
+        options: {
+            responsive: true, interaction: { mode: 'index', intersect: false },
+            scales: {
+                y: { position: 'left', ticks: { color: '#999' }, grid: { color: '#333' } },
+                y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#999' } },
+            },
+            plugins: { legend: { labels: { color: '#ccc', font: { size: 11 } } } },
+        }
+    });
+}
+
+function renderBingComparison() {
+    if (!Object.keys(BING_DATA).length) return;
+    const fromVal = document.getElementById('bing-comp-date-from').value;
+    const toVal = document.getElementById('bing-comp-date-to').value;
+    const exclude = new Set(['All', 'All Generic', 'All exc. Brand']);
+    const clusters = Object.keys(BING_DATA).filter(k => !exclude.has(k) && bingCompSelected.has(k));
+    let tableRows = clusters.map(k => {
+        let rows = BING_DATA[k] || [];
+        if (fromVal) rows = rows.filter(r => r.week >= fromVal);
+        if (toVal) rows = rows.filter(r => r.week <= toVal);
+        const spend = rows.reduce((s, r) => s + r.spend, 0);
+        const imp = rows.reduce((s, r) => s + r.imp, 0);
+        const clicks = rows.reduce((s, r) => s + r.clicks, 0);
+        const signups = rows.reduce((s, r) => s + r.signups, 0);
+        const work_signups = rows.reduce((s, r) => s + r.work_signups, 0);
+        const cpc = clicks > 0 ? spend / clicks : 0;
+        const cr = clicks > 0 ? (signups / clicks) * 100 : 0;
+        const cps = signups > 0 ? spend / signups : 0;
+        const work_cps = work_signups > 0 ? spend / work_signups : 0;
+        return { name: k, spend, imp, clicks, cpc, signups, cr, cps, work_signups, work_cps };
+    });
+    tableRows.sort((a, b) => (a[bingCompSortKey] - b[bingCompSortKey]) * bingCompSortDir);
+    const tot = { spend: 0, imp: 0, clicks: 0, signups: 0, work_signups: 0 };
+    tableRows.forEach(r => { tot.spend += r.spend; tot.imp += r.imp; tot.clicks += r.clicks; tot.signups += r.signups; tot.work_signups += r.work_signups; });
+    const tCpc = tot.clicks > 0 ? tot.spend / tot.clicks : 0;
+    const tCr = tot.clicks > 0 ? (tot.signups / tot.clicks) * 100 : 0;
+    const tCps = tot.signups > 0 ? tot.spend / tot.signups : 0;
+    const tWCps = tot.work_signups > 0 ? tot.spend / tot.work_signups : 0;
+
+    let html = tableRows.map(r => `<tr>
+        <td class="cluster-name">${r.name}</td>
+        <td class="right">${fmtMoney(r.spend)}</td><td class="right">${fmt(r.imp)}</td><td class="right">$${r.cpc.toFixed(2)}</td>
+        <td class="right">${fmt(r.signups)}</td><td class="right">${r.cr.toFixed(1)}%</td><td class="right">$${r.cps.toFixed(0)}</td>
+        <td class="right">${fmt(r.work_signups)}</td><td class="right">${r.work_signups>0?'$'+r.work_cps.toFixed(0):'—'}</td>
+    </tr>`).join('');
+    html += `<tr style="border-top:2px solid var(--border);font-weight:600"><td class="cluster-name">Total</td>
+        <td class="right">${fmtMoney(tot.spend)}</td><td class="right">${fmt(tot.imp)}</td><td class="right">$${tCpc.toFixed(2)}</td>
+        <td class="right">${fmt(tot.signups)}</td><td class="right">${tCr.toFixed(1)}%</td><td class="right">$${tCps.toFixed(0)}</td>
+        <td class="right">${fmt(tot.work_signups)}</td><td class="right">${tot.work_signups>0?'$'+tWCps.toFixed(0):'—'}</td>
+    </tr>`;
+    document.getElementById('bing-comp-table-body').innerHTML = html;
+}
+
+function initBingReport() {
+    if (bingInitialized) return;
+    bingInitialized = true;
+    if (!Object.keys(BING_DATA).length) {
+        document.getElementById('bing-kpi-grid').innerHTML = '<div class="kpi-card"><div class="kpi-label">No Bing data loaded yet</div><div class="kpi-val">—</div></div>';
+        return;
+    }
+
+    // Compute All exc. Brand
+    const excl = new Set(['All', 'All Generic', 'Brand']);
+    const clKeys = Object.keys(BING_DATA).filter(k => !excl.has(k));
+    const weekSet = new Set();
+    clKeys.forEach(k => BING_DATA[k].forEach(r => weekSet.add(r.week)));
+    const weeks = [...weekSet].sort();
+    BING_DATA['All exc. Brand'] = weeks.map(w => {
+        const row = { week: w, spend: 0, imp: 0, clicks: 0, signups: 0, work_signups: 0 };
+        clKeys.forEach(k => {
+            const m = BING_DATA[k].find(r => r.week === w);
+            if (m) { row.spend += m.spend; row.imp += m.imp; row.clicks += m.clicks; row.signups += m.signups; row.work_signups += (m.work_signups||0); }
+        });
+        return row;
+    });
+
+    // Set date defaults
+    const allWeeks = [...new Set(Object.values(BING_DATA).flatMap(r => r.map(x => x.week)))].sort();
+    if (allWeeks.length > 6) document.getElementById('bing-date-from').value = allWeeks[allWeeks.length-6];
+    else if (allWeeks.length) document.getElementById('bing-date-from').value = allWeeks[0];
+    const y = new Date(); y.setDate(y.getDate()-1);
+    document.getElementById('bing-date-to').value = y.toISOString().slice(0,10);
+
+    // Build cluster dropdown
+    const sel = document.getElementById('bing-cluster-select');
+    const keys = Object.keys(BING_DATA).sort((a, b) => {
+        const order = {'All': 0, 'All exc. Brand': 1, 'All Generic': 2};
+        const oa = order[a] ?? 99, ob = order[b] ?? 99;
+        if (oa !== ob) return oa - ob;
+        return a.localeCompare(b);
+    });
+    keys.forEach(k => {
+        const opt = document.createElement('option');
+        opt.value = k; opt.textContent = k;
+        if (k === 'All exc. Brand') opt.selected = true;
+        sel.appendChild(opt);
+    });
+    sel.addEventListener('change', () => { renderBingWoW(sel.value); renderBingChart(sel.value); });
+    document.getElementById('bing-date-from').addEventListener('change', () => { renderBingWoW(sel.value); renderBingChart(sel.value); });
+    document.getElementById('bing-date-to').addEventListener('change', () => { renderBingWoW(sel.value); renderBingChart(sel.value); });
+
+    // Chart toggles
+    const toggleContainer = document.getElementById('bing-chart-toggles');
+    BING_METRICS.forEach(m => {
+        const btn = document.createElement('button');
+        btn.className = 'chart-toggle' + (bingActiveMetrics.has(m.id) ? ' active' : '');
+        btn.innerHTML = `<span class="dot" style="background:${m.color}"></span>${m.label}`;
+        btn.addEventListener('click', () => {
+            if (bingActiveMetrics.has(m.id)) { bingActiveMetrics.delete(m.id); btn.classList.remove('active'); }
+            else { bingActiveMetrics.add(m.id); btn.classList.add('active'); }
+            renderBingChart(sel.value);
+        });
+        toggleContainer.appendChild(btn);
+    });
+
+    // Comparison controls
+    if (allWeeks.length > 4) document.getElementById('bing-comp-date-from').value = allWeeks[allWeeks.length-4];
+    else if (allWeeks.length) document.getElementById('bing-comp-date-from').value = allWeeks[0];
+    document.getElementById('bing-comp-date-to').value = y.toISOString().slice(0,10);
+
+    const exclude = new Set(['All', 'All Generic', 'All exc. Brand']);
+    const compClusters = Object.keys(BING_DATA).filter(k => !exclude.has(k)).sort();
+    const compContainer = document.getElementById('bing-comp-clusters');
+    compClusters.forEach(k => {
+        bingCompSelected.add(k);
+        const pill = document.createElement('button');
+        pill.className = 'comp-pill active';
+        pill.textContent = k;
+        pill.addEventListener('click', () => {
+            if (bingCompSelected.has(k)) { bingCompSelected.delete(k); pill.classList.remove('active'); }
+            else { bingCompSelected.add(k); pill.classList.add('active'); }
+            renderBingComparison();
+        });
+        compContainer.appendChild(pill);
+    });
+    document.getElementById('bing-comp-select-all').addEventListener('click', () => {
+        compClusters.forEach(k => bingCompSelected.add(k));
+        compContainer.querySelectorAll('.comp-pill').forEach(p => p.classList.add('active'));
+        renderBingComparison();
+    });
+    document.getElementById('bing-comp-select-none').addEventListener('click', () => {
+        bingCompSelected.clear();
+        compContainer.querySelectorAll('.comp-pill').forEach(p => p.classList.remove('active'));
+        renderBingComparison();
+    });
+    const GEN = new Set(['Calendar','Gantt','General','Logistics','Marketing','Project','Task','To Do','WW','Brazil','Canada','DACH','EU','France','LATAM','Mexico','Other']);
+    document.getElementById('bing-comp-select-generic').addEventListener('click', () => {
+        bingCompSelected.clear();
+        compContainer.querySelectorAll('.comp-pill').forEach(p => {
+            if (GEN.has(p.textContent)) { bingCompSelected.add(p.textContent); p.classList.add('active'); }
+            else p.classList.remove('active');
+        });
+        renderBingComparison();
+    });
+    document.getElementById('bing-comp-date-from').addEventListener('change', renderBingComparison);
+    document.getElementById('bing-comp-date-to').addEventListener('change', renderBingComparison);
+
+    // Sort headers
+    document.querySelectorAll('#bing-comp-thead-row th.sortable').forEach(th => {
+        th.addEventListener('click', () => {
+            const sk = th.dataset.sort;
+            if (bingCompSortKey === sk) bingCompSortDir *= -1;
+            else { bingCompSortKey = sk; bingCompSortDir = -1; }
+            document.querySelectorAll('#bing-comp-thead-row th.sortable').forEach(h => {
+                h.classList.remove('sort-active');
+                const arrow = h.querySelector('.sort-arrow');
+                if (arrow) arrow.remove();
+            });
+            th.classList.add('sort-active');
+            th.innerHTML = th.innerHTML.replace(/<span.*?<\/span>/, '') + ` <span class="sort-arrow">${bingCompSortDir === -1 ? '▼' : '▲'}</span>`;
+            renderBingComparison();
+        });
+    });
+
+    renderBingWoW(sel.value);
+    renderBingChart(sel.value);
+    renderBingComparison();
 }
 
 </script>
