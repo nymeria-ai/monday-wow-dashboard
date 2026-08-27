@@ -5,6 +5,11 @@ Pulls data from all 5 Google Ads accounts via Funnel Gate,
 maps campaigns to clusters, aggregates by ISO week,
 and updates the DATA constant in index.html.
 
+⚠️ MANDATORY: After ANY structural change to this script, index.html,
+or bing_refresh.py (new metrics, clusters, tabs, columns, filters, etc.),
+update dashboard-spec.md to reflect the change. The spec is the single
+source of truth for rebuilding/understanding the dashboard.
+
 ╔══════════════════════════════════════════════════════════════════╗
 ║  LOCKED METRIC DEFINITIONS — DO NOT CHANGE WITHOUT TAL'S OK    ║
 ║                                                                 ║
@@ -89,7 +94,9 @@ KEYWORD_CLUSTERS = [
     ("agent_aireal", "Agent - Real Estate", "startswith"),
     ("agent_aiwork_builder", "Agent - Work Agent", "startswith"),
     ("agent_aiwork_agent", "Agent - Work Agent", "startswith"),
+    ("agent_aipmo_work_process", "Agent - Work Process", "startswith"),
     ("agent_aiwork_process", "Agent - Work Process", "startswith"),
+    ("agent_aipmo", "Agent - PMO", "startswith"),
     ("agent_aiconstruction", "Agent - Construction", "startswith"),
     ("agent_aimarketing", "Agent - Marketing", "startswith"),
     ("agent_aigeneric", "Agent - Generic", "startswith"),
@@ -141,29 +148,25 @@ def match_keyword_cluster(cluster_val: str) -> str | None:
     return None
 
 def extract_cluster(campaign_name: str, account_id: str) -> str | None:
-    """Extract dashboard cluster from campaign name. Returns None to skip."""
-    # Clean: remove trailing suffixes after space (e.g. "VBB test1 - Calendar US H")
+    """Extract dashboard cluster from campaign name. Returns None to skip.
+    Comp/Brand always wins over geo (geo clusters are 'generic' = excl. comp)."""
     base_name = campaign_name.split(" ")[0] if " " in campaign_name else campaign_name
     parts = base_name.split("-")
     parts_lower = [p.lower() for p in parts]
-    name_lower = campaign_name.lower()
 
-    # ── Exclusions — FIRST, before any cluster logic ──
-    # Exclude if ANY part contains an excluded keyword
+    # ── Exclusions ──
     if any(excl in p for p in parts_lower for excl in CAMPAIGN_EXCLUSIONS):
         return None
-    # Also exclude known CRM-adjacent clusters
     if any(p in ("lead_management", "account_management", "lead_agent") for p in parts_lower):
         return None
 
-    # ── Brand / Comp — BEFORE any other cluster logic ──
-    # Brand account → always Brand
+    # ── Brand account → always Brand ──
     if account_id == "6073520942":
         return "Brand"
-    # If "brand" or "comp" appears anywhere in the campaign name → Brand / Competitors
-    # Brand takes priority over Comp
+    # Brand takes priority over everything
     if any(p == "brand" or p.startswith("brand_") or p == "brands_t" for p in parts_lower):
         return "Brand"
+    # Comp takes priority over geo
     if any(p.startswith("comp") for p in parts_lower):
         return "Competitors"
 
@@ -172,48 +175,45 @@ def extract_cluster(campaign_name: str, account_id: str) -> str | None:
 
     # EU1 detection
     if any(p.lower() == "eu1" for p in parts):
-        return "EU"
+        return "EU Generic"
 
     region = parts[0].lower()
 
-    # Detect format
+    # Parse cluster_val from naming convention
     if len(parts) >= 6 and parts[2].lower() == "prm":
-        # Long format: region-lang-prm-product-category-cluster-...
         cluster_val = parts[5].lower()
     elif len(parts) >= 3 and parts[1].lower() == "s":
-        # Short format: region-s-cluster-match-desk-variant
         cluster_val = parts[2].lower()
     else:
-        # Unknown format
+        if region in GEO_CLUSTERS:
+            return GEO_CLUSTERS[region] + " Generic"
         return "Other"
 
-    # Double-check CRM in cluster value (safety net)
     if "crm" in cluster_val:
         return None
 
-    # Special: AI Max campaigns
+    # AI Max campaigns
     if cluster_val in ("ai", "max"):
-        # Geo-based if available, otherwise Other
-        return GEO_CLUSTERS.get(region, "Other")
+        geo = GEO_CLUSTERS.get(region)
+        return (geo + " Generic") if geo else "Other"
 
-    # Check geo-based mapping first
+    # Geo-based mapping (these are generic = excl. comp)
     if region in GEO_CLUSTERS:
-        return GEO_CLUSTERS[region]
+        return GEO_CLUSTERS[region] + " Generic"
 
-    # WW region → WW cluster (before keyword matching)
+    # WW region
     if region == "ww":
         return "WW"
 
-    # Match cluster_val against keyword list (OR logic, priority order)
+    # Keyword matching for functional cluster
     matched = match_keyword_cluster(cluster_val)
     if matched:
         return matched
 
-    # Fallback: try prefix matching for unknown comp_ / agent_ patterns
     if cluster_val.startswith("comp_"):
         return "Competitors"
     if cluster_val.startswith("agent_ai"):
-        return "Other"  # Unknown agent type
+        return "Other"
 
     return "Other"
 
@@ -269,6 +269,7 @@ def pull_data():
         "spend": 0, "imp": 0, "clicks": 0, "signups": 0, "work_signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0
     }))
 
+
     for acct_id, acct_name in ACCOUNTS.items():
         print(f"\n=== {acct_name} ({acct_id}) ===")
 
@@ -306,7 +307,7 @@ def pull_data():
 
             cluster = extract_cluster(camp_name, acct_id)
             if cluster is None:
-                continue  # Skip CRM
+                continue
 
             week = week_start_wed(date)
             cost = float(metrics.get("costMicros", 0)) / 1_000_000
@@ -342,14 +343,13 @@ def pull_data():
 
 
 def compute_aggregates(cluster_data: dict) -> dict:
-    """Compute 'All' and 'All exc. Brand' aggregates."""
+    """Compute 'All' and 'All Generic' aggregates."""
     all_weeks = set()
     for weeks in cluster_data.values():
         all_weeks.update(weeks.keys())
 
     EXCLUDED_FROM_GENERIC = {"All", "All exc. Brand", "All Generic", "Brand", "Competitors", "Agent - Work Agent"}
 
-    # All cluster + All Generic cluster
     for week in sorted(all_weeks):
         totals = {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "work_signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0}
         generic_totals = {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "work_signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0}
@@ -359,7 +359,6 @@ def compute_aggregates(cluster_data: dict) -> dict:
             if week in weeks:
                 for k in totals:
                     totals[k] += weeks[week][k]
-                # Generic = not agent, not brand, not comp
                 if cluster_name not in EXCLUDED_FROM_GENERIC and not cluster_name.startswith("Agent"):
                     for k in generic_totals:
                         generic_totals[k] += weeks[week][k]

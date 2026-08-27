@@ -2,6 +2,8 @@
 
 > **Purpose:** This document is the single source of truth for rebuilding, understanding, or extending the WoW & Geo SEM Performance Dashboard. Paste it to an AI agent and it can fully reconstruct the dashboard or answer any question about how it works.
 
+> **⚠️ MANDATORY:** This spec MUST be updated every time the dashboard is modified — whether it's a new metric, cluster, tab, column, filter, goal ID, account, visual change, or any structural change to Google, Bing, or Geo views. No exception.
+
 > **Last updated:** 2026-08-27
 
 ---

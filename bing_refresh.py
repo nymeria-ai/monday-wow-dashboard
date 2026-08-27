@@ -5,6 +5,11 @@ Pulls data from 3 Microsoft Ads (Bing) accounts via the Reporting API,
 maps campaigns to clusters using the same logic as refresh.py,
 aggregates by Wed-Tue weeks, and updates the BING_DATA constant in index.html.
 
+⚠️ MANDATORY: After ANY structural change to this script, index.html,
+or refresh.py (new metrics, clusters, tabs, columns, filters, etc.),
+update dashboard-spec.md to reflect the change. The spec is the single
+source of truth for rebuilding/understanding the dashboard.
+
 Accounts:
   - dapulse: 50033985
   - Monday.com - Big 4: 135096643
