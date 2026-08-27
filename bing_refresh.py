@@ -43,9 +43,9 @@ ACCOUNTS = {
 }
 CUSTOMER_ID = "21132515"
 
-# Conversion Goal IDs
-HARD_SIGNUPS_GOAL_ID = "20117320"
-WORK_SIGNUPS_GOAL_ID = "31008558"
+# Conversion Goal IDs (multiple goals accumulated per metric)
+HARD_SIGNUPS_GOAL_IDS = {"20117320", "31018720"}
+WORK_SIGNUPS_GOAL_IDS = {"31008558", "31018719"}
 
 # Start date for historical data
 START_DATE = "2026-06-01"
@@ -440,9 +440,9 @@ def pull_data():
 
             week = week_start_wed(date_str)
 
-            if goal_id == HARD_SIGNUPS_GOAL_ID:
+            if goal_id in HARD_SIGNUPS_GOAL_IDS:
                 cluster_data[cluster][week]["signups"] += conversions
-            elif goal_id == WORK_SIGNUPS_GOAL_ID:
+            elif goal_id in WORK_SIGNUPS_GOAL_IDS:
                 cluster_data[cluster][week]["work_signups"] += conversions
 
     return cluster_data
