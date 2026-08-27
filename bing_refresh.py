@@ -253,16 +253,17 @@ def download_report(reporting_manager, report_request):
 
         # Parse CSV — skip Bing report header lines
         lines = content.strip().split('\n')
-        # Find the header row (contains column names)
+        # Find the header row (contains actual column names, not report metadata)
         header_idx = None
         for i, line in enumerate(lines):
-            if 'CampaignName' in line or 'Campaign' in line:
+            # Header row must contain a known column delimiter pattern
+            if ('"CampaignName"' in line or '"TimePeriod"' in line) and '"Report' not in line:
                 header_idx = i
                 break
         if header_idx is None:
-            # Try to find any row that looks like a header
+            # Fallback: look for tab-separated or unquoted headers
             for i, line in enumerate(lines):
-                if 'Spend' in line or 'TimePeriod' in line:
+                if 'CampaignName' in line and ('Spend' in line or 'GoalId' in line):
                     header_idx = i
                     break
         if header_idx is None:
@@ -355,12 +356,12 @@ def pull_data():
 
         # Process performance rows
         for row in perf_rows:
-            camp_name = row.get('CampaignName', '')
-            date_str = row.get('TimePeriod', '').split('T')[0]  # Handle datetime format
-            spend = float(row.get('Spend', 0) or 0)
-            imps = int(float(row.get('Impressions', 0) or 0))
-            clicks = int(float(row.get('Clicks', 0) or 0))
-            campaign_type = row.get('CampaignType', '')
+            camp_name = row.get('CampaignName') or ''
+            date_str = (row.get('TimePeriod') or '').split('T')[0]
+            spend = float(row.get('Spend') or 0)
+            imps = int(float(row.get('Impressions') or 0))
+            clicks = int(float(row.get('Clicks') or 0))
+            campaign_type = row.get('CampaignType') or ''
 
             # Only Search campaigns (Bing uses 'Search & content' type)
             if campaign_type and 'Search' not in campaign_type and 'search' not in campaign_type.lower():
