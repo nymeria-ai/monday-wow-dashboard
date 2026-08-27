@@ -687,8 +687,8 @@ td {
                 <th class="right">Δ</th>
                 <th class="right">Impressions</th>
                 <th class="right">Δ</th>
-                <th class="right">Signups</th>
-                <th class="right">CPS</th>
+                <th class="right">Hard Signups</th>
+                <th class="right">Hard SU CPS</th>
                 <th class="right">Δ</th>
                 <th class="right">Work SU</th>
                 <th class="right">Work CPS</th>
@@ -1709,12 +1709,12 @@ const bingCompSelected = new Set();
 const BING_METRICS = [
     { id: 'spend', label: 'Spend', color: '#6c5ce7', fmt: v => '$'+Math.round(v).toLocaleString('en-US'), axis: 'y' },
     { id: 'imp', label: 'Impressions', color: '#00b894', fmt: v => v.toLocaleString('en-US'), axis: 'y1' },
-    { id: 'signups', label: 'Signups', color: '#fdcb6e', fmt: v => v.toFixed(0), axis: 'y1' },
-    { id: 'cps', label: 'CPS', color: '#e17055', fmt: v => '$'+v.toFixed(0), axis: 'y' },
+    { id: 'signups', label: 'Hard Signups', color: '#fdcb6e', fmt: v => v.toFixed(0), axis: 'y1' },
+    { id: 'cps', label: 'Hard Signup CPS', color: '#e17055', fmt: v => '$'+v.toFixed(0), axis: 'y' },
     { id: 'work_signups', label: 'Work SU', color: '#74b9ff', fmt: v => v.toFixed(0), axis: 'y1' },
     { id: 'work_cps', label: 'Work CPS', color: '#fd79a8', fmt: v => '$'+v.toFixed(0), axis: 'y' },
 ];
-const bingActiveMetrics = new Set(['spend', 'signups']);
+const bingActiveMetrics = new Set(['spend', 'cps']);
 
 function getBingRows(cluster) { return BING_DATA[cluster] || []; }
 function getBingFilteredRows(cluster) {
@@ -1755,8 +1755,8 @@ function renderBingWoW(cluster) {
 
     const kpis = [
         { label: 'Spend', val: fmtMoney(totalSpend), d: priorSpend > 0 ? delta(totalSpend, priorSpend) : { pct: null }, inv: false },
-        { label: 'Signups', val: fmt(totalSignups), d: priorSignups > 0 ? delta(totalSignups, priorSignups) : { pct: null }, inv: false },
-        { label: 'CPS', val: totalCps > 0 ? '$'+Math.round(totalCps).toLocaleString('en-US') : '—', d: priorCps > 0 ? delta(totalCps, priorCps) : { pct: null }, inv: true },
+        { label: 'Hard Signups', val: fmt(totalSignups), d: priorSignups > 0 ? delta(totalSignups, priorSignups) : { pct: null }, inv: false },
+        { label: 'Hard Signup CPS', val: totalCps > 0 ? '$'+Math.round(totalCps).toLocaleString('en-US') : '—', d: priorCps > 0 ? delta(totalCps, priorCps) : { pct: null }, inv: true },
         { label: 'Work CPS', val: totalWCps > 0 ? '$'+Math.round(totalWCps).toLocaleString('en-US') : '—', d: priorWCps > 0 ? delta(totalWCps, priorWCps) : { pct: null }, inv: true },
     ];
 
