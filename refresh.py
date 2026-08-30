@@ -63,6 +63,10 @@ CONV_ACTIONS = {
 # Campaign name exclusions — skip these niches/types entirely
 CAMPAIGN_EXCLUSIONS = {"crm", "service", "globster", "elevate", "taka"}
 
+# Localization regions — comp campaigns are included in these geo clusters
+# (not separated into the Competitors cluster)
+LOCALIZATION_REGIONS = {"br", "br_pt", "dach", "de", "german_de", "fr", "fr_fr", "latam", "mx"}
+
 # ── Geo-based cluster mapping (region prefix → cluster) ──
 GEO_CLUSTERS = {
     "br": "Brazil",
@@ -166,8 +170,13 @@ def extract_cluster(campaign_name: str, account_id: str) -> str | None:
     # Brand takes priority over everything
     if any(p == "brand" or p.startswith("brand_") or p == "brands_t" for p in parts_lower):
         return "Brand"
-    # Comp takes priority over geo
+    # Comp handling:
+    # - Localization geos (DACH, FR, BR, LATAM, MX) → comp included in geo cluster
+    # - English geos (CA, WW, EU1, US, AU, GB) → comp goes to Competitors
     if any(p.startswith("comp") for p in parts_lower):
+        region = parts[0].lower()
+        if region in LOCALIZATION_REGIONS:
+            return GEO_CLUSTERS.get(region, "Competitors") + " Generic"
         return "Competitors"
 
     if len(parts) < 3:

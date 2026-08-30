@@ -129,17 +129,22 @@ The `extract_cluster()` function maps each campaign name to a dashboard cluster.
 
 ### 6.1 Key Rules
 
-1. **Comp/Brand ALWAYS wins over geo.** A campaign like `eu1-...-comp1-...` goes to "Competitors" only, NOT to "EU Generic".
-2. **Geo clusters are labeled "Generic"** (e.g., "Canada Generic", "DACH Generic") to indicate they exclude comp activity.
-3. **The Competitors cluster includes all geos** — it's the only place to see comp activity regardless of geography.
-4. A note appears on both Google and Bing views explaining this.
+1. **Brand ALWAYS wins over everything.** A campaign with `brand` in the name → always "Brand".
+2. **Comp handling depends on geo type:**
+   - **Localization geos** (DACH, DE, FR, BR, LATAM, MX — defined in `LOCALIZATION_REGIONS`) → comp campaigns are **included in the geo cluster** (e.g., `fr-fr-...-comp1-...` → "France Generic").
+   - **English geos** (CA, WW, EU1, US, AU, GB) → comp campaigns go to the **"Competitors" cluster** (e.g., `ca-en-...-comp1-...` → "Competitors").
+3. **The Competitors cluster covers all non-localization geos** — it does NOT include comp activity from DACH, FR, BR, LATAM, or MX.
+4. **This does NOT apply to the Geo Report tab**, which has no cluster segmentation.
+5. A note appears on both Google and Bing views explaining this.
 
 ### 6.2 Processing Order (first match wins)
 
 1. **Exclusions** — Skip if campaign name contains: `crm`, `service`, `globster`, `elevate`, `taka`, `lead_management`, `account_management`, `lead_agent`
 2. **Brand account** — Account `6073520942` (Google only) → always **"Brand"**
 3. **Brand keywords** — `brand`, `brand_*`, `brands_t` → **"Brand"**
-4. **Comp keywords** — starts with `comp` → **"Competitors"**
+4. **Comp keywords** — starts with `comp`:
+   - If region prefix is in `LOCALIZATION_REGIONS` (`br`, `br_pt`, `dach`, `de`, `german_de`, `fr`, `fr_fr`, `latam`, `mx`) → route to **geo cluster** (e.g., "DACH Generic")
+   - Otherwise → **"Competitors"**
 5. **EU1** — part equals `eu1` → **"EU Generic"**
 6. **Geo mapping** — region prefix → **"[Geo] Generic"**:
    - `br`, `br_pt` → Brazil Generic
@@ -312,4 +317,5 @@ monday-wow-dashboard/
 | 2026-08-27 | **Bing chart:** Bars for volume metrics, lines for CPS. Each metric gets own y-axis. Default: Spend + Hard Signup CPS. |
 | 2026-08-27 | **Bing KPIs:** Aggregate entire date range (not just last week). Delta vs equivalent prior period. |
 | 2026-08-27 | Renamed Bing "Signups"→"Hard Signups", "CPS"→"Hard Signup CPS". Removed Bing sub-header. |
+| 2026-08-30 | **Comp logic changed for localizations.** Localization geos (DACH, FR, BR, LATAM, MX) now include comp campaigns in their cluster. English geos (CA, WW, EU1) still route comp to Competitors. Updated notes on both Google and Bing views. |
 | 2026-08-26 | Added spec file and download button. Added Agent - PMO cluster. |
