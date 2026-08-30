@@ -60,7 +60,7 @@ CAMPAIGN_EXCLUSIONS = {"crm", "service", "globster", "elevate", "taka"}
 
 # Localization regions — comp campaigns are included in these geo clusters
 # (not separated into the Competitors cluster)
-LOCALIZATION_REGIONS = {"br", "br_pt", "dach", "de", "german_de", "fr", "fr_fr", "latam", "mx"}
+LOCALIZATION_REGIONS = {"br", "br_pt", "dach", "de", "german_de", "fr", "fr_fr", "latam"}
 
 # ── Geo-based cluster mapping ──
 GEO_CLUSTERS = {
@@ -125,6 +125,16 @@ KEYWORD_CLUSTERS = [
 ]
 
 
+def geo_cluster_name(region: str) -> str:
+    """Return the cluster name for a geo region.
+    Localization regions use bare names (e.g. 'DACH', 'France').
+    English regions keep ' Generic' suffix (e.g. 'Canada Generic')."""
+    base = GEO_CLUSTERS[region]
+    if region in LOCALIZATION_REGIONS:
+        return base
+    return base + " Generic"
+
+
 def match_keyword_cluster(cluster_val: str) -> str | None:
     for kw, cluster_name, mode in KEYWORD_CLUSTERS:
         if mode == "startswith" and cluster_val.startswith(kw):
@@ -158,7 +168,8 @@ def extract_cluster(campaign_name: str, account_id: str) -> str | None:
     if any(p.startswith("comp") for p in parts_lower):
         region = parts[0].lower()
         if region in LOCALIZATION_REGIONS:
-            return GEO_CLUSTERS.get(region, "Competitors") + " Generic"
+            geo = GEO_CLUSTERS.get(region)
+            return geo if geo else "Competitors"
         return "Competitors"
 
     if len(parts) < 3:
@@ -177,19 +188,20 @@ def extract_cluster(campaign_name: str, account_id: str) -> str | None:
         cluster_val = parts[2].lower()
     else:
         if region in GEO_CLUSTERS:
-            return GEO_CLUSTERS[region] + " Generic"
+            return geo_cluster_name(region)
         return "Other"
 
     if "crm" in cluster_val:
         return None
 
     if cluster_val in ("ai", "max"):
-        geo = GEO_CLUSTERS.get(region)
-        return (geo + " Generic") if geo else "Other"
+        if region in GEO_CLUSTERS:
+            return geo_cluster_name(region)
+        return "Other"
 
-    # Geo-based mapping (generic = excl. comp)
+    # Geo-based mapping
     if region in GEO_CLUSTERS:
-        return GEO_CLUSTERS[region] + " Generic"
+        return geo_cluster_name(region)
 
     if region == "ww":
         return "WW"
