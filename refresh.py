@@ -104,6 +104,7 @@ KEYWORD_CLUSTERS = [
     ("agent_aiconstruction", "Agent - Construction", "startswith"),
     ("agent_aimarketing", "Agent - Marketing", "startswith"),
     ("agent_aigeneric", "Agent - Generic", "startswith"),
+    ("agent_aiworkflow", "Agent - AI Workflow", "startswith"),
     ("agent_aicomp", "Agent - Comp", "startswith"),
     # Specific clusters (before General to avoid "management" overlap)
     ("project", "Project", "startswith"),
