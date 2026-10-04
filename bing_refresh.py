@@ -150,6 +150,9 @@ def extract_cluster(campaign_name: str, account_id: str) -> str | None:
     """Extract dashboard cluster from campaign name. Returns None to skip.
     Comp/Brand always wins over geo (geo clusters are 'generic' = excl. comp)."""
     base_name = campaign_name.split(" ")[0] if " " in campaign_name else campaign_name
+    # Legacy naming: 'dach_de-bing-...' → treat region as 'dach' (fix 2026-10-04)
+    if base_name.lower().startswith("dach_de-"):
+        base_name = "dach-de-" + base_name[len("dach_de-"):]
     parts = base_name.split("-")
     parts_lower = [p.lower() for p in parts]
 
@@ -318,6 +321,7 @@ def pull_data():
     }))
 
 
+    non_search_campaigns = set()  # campaigns filtered out by type (spend) — also drop their conversions
     for acct_id, acct_name in ACCOUNTS.items():
         print(f"\n=== {acct_name} ({acct_id}) ===")
 
@@ -393,6 +397,7 @@ def pull_data():
 
             # Only Search campaigns (Bing uses 'Search & content' type)
             if campaign_type and 'Search' not in campaign_type and 'search' not in campaign_type.lower():
+                non_search_campaigns.add(camp_name)
                 continue
 
             cluster = extract_cluster(camp_name, acct_id)
@@ -458,6 +463,10 @@ def pull_data():
             conversions = float(row.get('AllConversions', 0) or 0)
 
             if not camp_name or not date_str:
+                continue
+            # Skip conversions from non-Search campaigns (e.g. PMax) — their spend is
+            # excluded above, so counting their signups inflated SU / deflated CPS (fix 2026-10-04)
+            if camp_name in non_search_campaigns:
                 continue
 
             cluster = extract_cluster(camp_name, acct_id)
