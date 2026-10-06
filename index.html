@@ -645,6 +645,7 @@ td {
             <th class="right sortable" data-sort="agents_created">Agents Created</th>
             <th class="right sortable" data-sort="cpac">CPAC</th>
             <th class="right sortable" data-sort="payers">Payers</th>
+            <th class="right sortable" data-sort="cvr_paid" title="Payers ÷ Hard Signups">CVR Paid</th>
             <th class="right sortable" data-sort="cac">CAC</th>
             <th class="right sortable" data-sort="roas">VBB ROAS</th>
         </tr></thead>
@@ -1658,8 +1659,8 @@ function geoAgg(geo, weeks) {
 function renderGeoComparison() {
     const weeks = geoCompWeeks();
     let geos = geoCompGeos.filter(c => geoCompActive.has(c));
-    if (!geos.length) { document.getElementById('geo-comp-tbody').innerHTML = '<tr><td colspan="14" style="text-align:center;color:#666;padding:24px">Select at least one geo</td></tr>'; return; }
-    const sortVal = c => { const a = geoAgg(c,weeks); switch(geoCompSortKey){case'spend':return a.spend;case'imp':return a.imp;case'cpc':return a.clicks>0?a.spend/a.clicks:0;case'signups':return a.signups;case'cr':return a.clicks>0?a.signups/a.clicks:0;case'cps':return a.signups>0?a.spend/a.signups:0;case'work_signups':return a.work_signups;case'work_cps':return a.work_signups>0?a.spend/a.work_signups:0;case'payers':return a.payers;case'agents_created':return a.agents_created;case'cpac':return a.agents_created>0?a.spend/a.agents_created:0;case'cac':return a.payers>0?a.spend/a.payers:0;case'roas':return a.spend>0?a.vbb_value/a.spend:0;default:return a.spend;}};
+    if (!geos.length) { document.getElementById('geo-comp-tbody').innerHTML = '<tr><td colspan="15" style="text-align:center;color:#666;padding:24px">Select at least one geo</td></tr>'; return; }
+    const sortVal = c => { const a = geoAgg(c,weeks); switch(geoCompSortKey){case'spend':return a.spend;case'imp':return a.imp;case'cpc':return a.clicks>0?a.spend/a.clicks:0;case'signups':return a.signups;case'cr':return a.clicks>0?a.signups/a.clicks:0;case'cps':return a.signups>0?a.spend/a.signups:0;case'work_signups':return a.work_signups;case'work_cps':return a.work_signups>0?a.spend/a.work_signups:0;case'payers':return a.payers;case'cvr_paid':return a.signups>0?a.payers/a.signups:0;case'agents_created':return a.agents_created;case'cpac':return a.agents_created>0?a.spend/a.agents_created:0;case'cac':return a.payers>0?a.spend/a.payers:0;case'roas':return a.spend>0?a.vbb_value/a.spend:0;default:return a.spend;}};
     geos.sort((a,b) => geoCompSortDesc ? sortVal(b)-sortVal(a) : sortVal(a)-sortVal(b));
 
     let html = '';
@@ -1673,7 +1674,7 @@ function renderGeoComparison() {
             <td class="right">${fmt(a.signups)}</td><td class="right">${cr.toFixed(1)}%</td><td class="right">$${cps.toFixed(0)}</td>
             <td class="right">${fmt(a.work_signups)}</td><td class="right">${a.work_signups>0?'$'+wCps.toFixed(0):'—'}</td>
             <td class="right">${fmt(a.agents_created)}</td><td class="right">${a.agents_created>0?fmtMoney(cpac):'—'}</td>
-            <td class="right">${a.payers.toFixed(0)}</td><td class="right">${a.payers>0?fmtMoney(cac):'—'}</td>
+            <td class="right">${a.payers.toFixed(0)}</td><td class="right">${a.signups>0?((a.payers/a.signups)*100).toFixed(1)+'%':'—'}</td><td class="right">${a.payers>0?fmtMoney(cac):'—'}</td>
             <td class="right">${roas.toFixed(0)}%</td></tr>`;
     });
     // Totals
@@ -1687,7 +1688,7 @@ function renderGeoComparison() {
         <td class="right">${fmt(tot.signups)}</td><td class="right">${tCr.toFixed(1)}%</td><td class="right">$${tCps.toFixed(0)}</td>
         <td class="right">${fmt(tot.work_signups)}</td><td class="right">${tot.work_signups>0?'$'+tWCps.toFixed(0):'—'}</td>
         <td class="right">${fmt(tot.agents_created)}</td><td class="right">${tot.agents_created>0?fmtMoney(tCpac):'—'}</td>
-        <td class="right">${tot.payers.toFixed(0)}</td><td class="right">${tot.payers>0?fmtMoney(tCac):'—'}</td>
+        <td class="right">${tot.payers.toFixed(0)}</td><td class="right">${tot.signups>0?((tot.payers/tot.signups)*100).toFixed(1)+'%':'—'}</td><td class="right">${tot.payers>0?fmtMoney(tCac):'—'}</td>
         <td class="right">${tRoas.toFixed(0)}%</td></tr>`;
     document.getElementById('geo-comp-tbody').innerHTML = html;
 }
