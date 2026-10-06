@@ -174,6 +174,8 @@ The `extract_cluster()` function maps each campaign name to a dashboard cluster.
 - **Chart:** Toggleable metrics, each gets its own y-axis. Bars for volume metrics, lines for cost metrics.
 - **Table columns:** Week, Spend, Δ, Imp, Δ, Signups, CPS, Δ, Work SU, Work CPS, Δ, Agents Created, CPAC, Δ, Payers, CAC, VBB ROAS, Δ
 - **Cluster Comparison:** Quick-select buttons: Select all, Clear, Generic, Agentic Activity, Geo Clusters
+- **Cluster Comparison — Country filter (Oct 6 2026, Amit):** dropdown "Country (campaign prefix)". Market = first segment of the campaign name (`us-en-s-...` → US). Data in `DATA_MARKET` = {market: {cluster: [weekly rows]}}, built by `refresh.py` (`campaign_market()` / `update_market_in_html()`) from the same rows as `DATA`. Clusters with no activity in the chosen market are hidden. "All countries" = original `DATA`.
+- **Cluster Comparison — CVR Paid column:** Payers ÷ Hard Signups (both locked definitions above), also in Total row, sortable.
 
 ### 7.2 Bing WoW Tab
 

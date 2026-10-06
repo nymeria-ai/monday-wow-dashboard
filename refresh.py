@@ -278,6 +278,56 @@ def run_gaql(customer_id: str, query: str) -> list:
     return data.get("result", {}).get("results", [])
 
 
+_ZERO_ROW = lambda: {"spend": 0, "imp": 0, "clicks": 0, "signups": 0, "work_signups": 0,
+                     "payers": 0, "vbb_value": 0, "agents_created": 0}
+MARKET_DATA = defaultdict(lambda: defaultdict(lambda: defaultdict(_ZERO_ROW)))
+
+
+def campaign_market(campaign_name: str) -> str:
+    """Market = first segment of the campaign name ("us-en-s-..." -> "us")."""
+    base = campaign_name.split(" ")[0] if " " in campaign_name else campaign_name
+    seg = base.split("-")[0].strip().lower()
+    return seg if re.fullmatch(r"[a-z0-9_]{2,12}", seg) else "other"
+
+
+def format_market_data_for_html() -> str:
+    """{market: {cluster: [rows only for weeks with activity]}} — compact."""
+    out = {}
+    for market, clusters in MARKET_DATA.items():
+        mc = {}
+        for cluster, weeks in clusters.items():
+            rows = []
+            for week in sorted(weeks):
+                d = weeks[week]
+                if not any(d.values()):
+                    continue
+                rows.append({
+                    "spend": round(d["spend"], 2), "imp": d["imp"], "clicks": d["clicks"],
+                    "signups": round(d["signups"], 1), "work_signups": round(d["work_signups"], 1),
+                    "payers": round(d["payers"], 1), "vbb_value": round(d["vbb_value"], 2),
+                    "agents_created": round(d["agents_created"], 1), "week": week,
+                })
+            if rows:
+                mc[cluster] = rows
+        if mc:
+            out[market] = mc
+    return json.dumps(out, separators=(",", ":"))
+
+
+def update_market_in_html(market_json: str):
+    """Insert/replace the DATA_MARKET constant right after DATA in index.html."""
+    content = INDEX_HTML.read_text()
+    line = f"const DATA_MARKET = {market_json};"
+    new_content, count = re.subn(r'const DATA_MARKET = \{.*?\};', lambda _: line, content, count=1, flags=re.DOTALL)
+    if count == 0:
+        new_content, count = re.subn(r'(const DATA = \{.*?\};)', lambda mo: mo.group(1) + "\n" + line, content, count=1, flags=re.DOTALL)
+    if count == 0:
+        print("ERROR: could not place DATA_MARKET in index.html", file=sys.stderr)
+        sys.exit(1)
+    INDEX_HTML.write_text(new_content)
+    print(f"Updated DATA_MARKET ({len(market_json):,} chars, {len(MARKET_DATA)} markets)")
+
+
 def pull_data():
     """Pull performance and conversion data from all accounts."""
     # Calculate date range
@@ -290,6 +340,9 @@ def pull_data():
     cluster_data = defaultdict(lambda: defaultdict(lambda: {
         "spend": 0, "imp": 0, "clicks": 0, "signups": 0, "work_signups": 0, "payers": 0, "vbb_value": 0, "agents_created": 0
     }))
+    # Same metrics split by campaign-name market prefix (e.g. "us" from "us-en-s-...")
+    # Used by the Cluster Comparison country filter. {market: {cluster: {week: {...}}}}
+    MARKET_DATA.clear()
 
 
     for acct_id, acct_name in ACCOUNTS.items():
@@ -339,6 +392,10 @@ def pull_data():
             cluster_data[cluster][week]["spend"] += cost
             cluster_data[cluster][week]["imp"] += imps
             cluster_data[cluster][week]["clicks"] += clicks
+            m = MARKET_DATA[campaign_market(camp_name)][cluster][week]
+            m["spend"] += cost
+            m["imp"] += imps
+            m["clicks"] += clicks
 
         # Process conversion rows (all 4 actions by name)
         for row in conv_rows:
@@ -356,10 +413,13 @@ def pull_data():
             conv_value = float(metrics.get("allConversionsValue", 0))
 
             metric_key = CONV_ACTIONS.get(conv_name)
+            m = MARKET_DATA[campaign_market(camp_name)][cluster][week]
             if metric_key == "vbb":
                 cluster_data[cluster][week]["vbb_value"] += conv_value
+                m["vbb_value"] += conv_value
             elif metric_key:
                 cluster_data[cluster][week][metric_key] += conversions
+                m[metric_key] += conversions
 
     return cluster_data
 
@@ -472,6 +532,7 @@ def main():
 
     data_json = format_data_for_html(cluster_data)
     update_index_html(data_json)
+    update_market_in_html(format_market_data_for_html())
     pushed = git_commit_push()
 
     if pushed:
