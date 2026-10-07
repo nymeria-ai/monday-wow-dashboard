@@ -90,9 +90,20 @@ table.simple th{background:var(--bg3);color:var(--accent)}
   pre{font-size:.75em}
   table.simple{display:block;overflow-x:auto}
 }
+
+/* light mode */
+html[data-theme="light"]{--bg:#ffffff;--bg2:#f6f8fa;--bg3:#eaeef2;--border:#d0d7de;--fg:#1f2328;--muted:#59636e;--accent:#0969da;--green:#1a7f37;--orange:#9a6700;--red:#cf222e;--purple:#8250df;--pink:#bf3989;--cyan:#0550ae;--str:#0a3069}
+html[data-theme="light"] pre,html[data-theme="light"] .tree{background:#f6f8fa}
+html[data-theme="light"] header h1{background:linear-gradient(90deg,#0969da,#8250df);-webkit-background-clip:text;background-clip:text}
+html[data-theme="light"] .layer .n{color:#fff}
+#themeToggle{position:fixed;top:14px;right:14px;z-index:999;background:var(--bg2);color:var(--fg);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:.85em;cursor:pointer;font-family:inherit}
+#themeToggle:hover{border-color:var(--accent)}
 </style>
+<script>(function(){var t=localStorage.getItem("xray-theme");if(!t&&window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches)t="light";if(t==="light")document.documentElement.setAttribute("data-theme","light");})();</script>
 </head>
 <body>
+<button id="themeToggle" type="button" aria-label="Toggle light/dark mode"></button>
+<script>(function(){var b=document.getElementById("themeToggle"),r=document.documentElement;function l(){b.textContent=r.getAttribute("data-theme")==="light"?"🌙 Dark":"☀️ Light";}b.onclick=function(){var x=r.getAttribute("data-theme")==="light";if(x)r.removeAttribute("data-theme");else r.setAttribute("data-theme","light");localStorage.setItem("xray-theme",x?"dark":"light");l();};l();})();</script>
 <div class="wrap">
 
 <header>
