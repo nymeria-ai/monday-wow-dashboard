@@ -564,7 +564,10 @@ def git_commit_push():
     """Commit and push changes."""
     import subprocess as sp
     today = datetime.now().strftime("%Y-%m-%d")
+    from sync_copies import sync as _sync_copies, COPIES as _COPIES
+    _sync_copies()
     sp.run(["git", "add", "index.html", "bing_refresh.py"], cwd=SCRIPT_DIR, check=True)
+    sp.run(["git", "add", "sync_copies.py", *_COPIES], cwd=SCRIPT_DIR, check=True)
     result = sp.run(["git", "diff", "--cached", "--quiet"], cwd=SCRIPT_DIR)
     if result.returncode == 0:
         print("No changes to commit")

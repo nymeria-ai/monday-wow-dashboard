@@ -267,11 +267,18 @@ const GEO_DATA_BRAND = {
 
 ---
 
+### Dashboard copies (sync_copies.py)
+- Copies of `index.html` listed in `COPIES` in `sync_copies.py` (now: `sem-wow-v2.html`, Alex Abramovich, Oct 28 2026).
+- At the end of each refresh, both scripts call `sync_copies.sync()`. It overwrites only the data lines (`DATA`, `DATA_MARKET`, `GEO_DATA_BRAND`, `GEO_DATA_NONBRAND`, `BING_DATA`) in each copy. Layout/JS edits in a copy are kept.
+- Keep these constants on one line each in every copy, or the sync skips them.
+
 ## 10. File Structure
 
 ```
 monday-wow-dashboard/
 ├── index.html                  # Entire dashboard (HTML + CSS + JS + data)
+├── sem-wow-v2.html             # Copy for Alex (own layout, data synced from index.html)
+├── sync_copies.py              # Syncs data constants into copies
 ├── refresh.py                  # Google Ads data refresh script
 ├── bing_refresh.py             # Microsoft Ads (Bing) data refresh script
 ├── dashboard-spec.md           # This file
