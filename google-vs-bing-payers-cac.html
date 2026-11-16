@@ -1,0 +1,49 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Google vs Bing: Payers & CAC, May 15 – Oct 15 2026</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+body{margin:0;font-family:Figtree,Poppins,-apple-system,Segoe UI,Roboto,sans-serif;background:#f6f7fb;color:#323338}
+.wrap{max-width:1180px;margin:0 auto;padding:32px 20px 60px}
+h1{font-size:28px;margin:0 0 6px} .sub{color:#676879;margin-bottom:24px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+.k{background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.k .l{font-size:13px;color:#676879} .k .v{font-size:26px;font-weight:700;margin-top:4px} .k .s{font-size:12px;color:#676879}
+.card{background:#fff;border-radius:16px;padding:20px 22px;margin-bottom:22px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.card h2{font-size:19px;margin:0 0 4px} .card .hint{font-size:13px;color:#676879;margin-bottom:12px}
+.g{border-top:5px solid #4285F4} .b{border-top:5px solid #00A4EF}
+table{width:100%;border-collapse:collapse;font-size:14px} th,td{padding:10px 8px;text-align:right;border-bottom:1px solid #eceef5}
+th:first-child,td:first-child{text-align:left} th{background:#f5f6f8;font-weight:600;font-size:13px}
+th.gh{color:#1a56c4} th.bh{color:#0078b8} tr.tot td{font-weight:700;background:#f0f3ff}
+.good{color:#00854d;font-weight:600} .bad{color:#d83a52;font-weight:600}
+.notes{font-size:13px;color:#4b4d5c;line-height:1.6} .notes li{margin-bottom:4px}
+@media(max-width:800px){.kpis{grid-template-columns:repeat(2,1fr)} table{font-size:12px}}
+</style></head><body><div class="wrap">
+<h1>Google vs Bing: Payers & CAC</h1>
+<div class="sub">May 15 – Oct 15 2026 · weekly (Wed–Tue) + monthly · data pulled directly from Google Ads and Microsoft Ads</div>
+<div class="kpis">
+<div class="k"><div class="l">Google CAC</div><div class="v">$8,356</div><div class="s">2,219 payers · $18,542,575 spend</div></div>
+<div class="k"><div class="l">Bing CAC</div><div class="v">$7,665</div><div class="s">242 payers · $1,854,852 spend</div></div>
+<div class="k"><div class="l">Bing share of spend</div><div class="v">9.1%</div><div class="s">of Google + Bing</div></div>
+<div class="k"><div class="l">Bing share of payers</div><div class="v">9.8%</div><div class="s">of Google + Bing</div></div>
+</div>
+<div class="card g"><h2>Google: payers & CAC, week over week</h2><div class="hint">Bars = payers (left axis) · line = CAC (right axis)</div><canvas id="cg" height="110"></canvas></div>
+<div class="card b"><h2>Bing: payers & CAC, week over week</h2><div class="hint">Bars = payers (left axis) · line = CAC (right axis) · grey bars = Bing conversion tracking gap (Jun 21 – Jul 9), payers undercounted</div><canvas id="cb" height="110"></canvas></div>
+<div class="card"><h2>Google vs Bing by month</h2><div class="hint">CAC = spend ÷ payers. Totals are total spend ÷ total payers.</div>
+<table><thead><tr><th>Month</th><th class="gh">Google spend</th><th class="gh">Google payers</th><th class="gh">Google CAC</th><th class="bh">Bing spend</th><th class="bh">Bing payers</th><th class="bh">Bing CAC</th><th>Bing CAC vs Google</th><th>Bing share spend / payers</th></tr></thead><tbody><tr class=""><td>May 15–31</td><td>$1,775,141</td><td>256</td><td>$6,934</td><td>$266,445</td><td>52</td><td>$5,124</td><td class="good">-26%</td><td>13.1% / 16.9%</td></tr><tr class=""><td>June ⚠️</td><td>$3,241,055</td><td>464</td><td>$6,985</td><td>$497,162</td><td>20</td><td>$24,858</td><td class="bad">+256%</td><td>13.3% / 4.1%</td></tr><tr class=""><td>July ⚠️</td><td>$3,412,539</td><td>371</td><td>$9,198</td><td>$162,134</td><td>18</td><td>$9,007</td><td class="good">-2%</td><td>4.5% / 4.6%</td></tr><tr class=""><td>August</td><td>$4,105,076</td><td>631</td><td>$6,506</td><td>$345,717</td><td>42</td><td>$8,231</td><td class="bad">+27%</td><td>7.8% / 6.2%</td></tr><tr class=""><td>September</td><td>$4,090,557</td><td>339</td><td>$12,067</td><td>$412,955</td><td>80</td><td>$5,162</td><td class="good">-57%</td><td>9.2% / 19.1%</td></tr><tr class=""><td>Oct 1–15</td><td>$1,918,208</td><td>158</td><td>$12,141</td><td>$170,439</td><td>30</td><td>$5,681</td><td class="good">-53%</td><td>8.2% / 16.0%</td></tr><tr class="tot"><td>Total May 15–Oct 15</td><td>$18,542,575</td><td>2,219</td><td>$8,356</td><td>$1,854,852</td><td>242</td><td>$7,665</td><td class="good">-8%</td><td>9.1% / 9.8%</td></tr></tbody></table></div>
+<div class="card notes"><h2>How this was built</h2><ul>
+<li><b>Google:</b> accounts Main 3746504118 + Locals 9441310809 (all campaigns), payers = conversion action "Paying (MCC)", all conversions, by conversion date. Customer totals checked against the campaign sums: match.</li>
+<li><b>Bing:</b> accounts Big 4 135096643 + Locals 135096648, PMAX excluded. Payers = "paying" goal (campaign level, 31017633 / 31018718) and "paying - account" (31008495), taking the higher one per campaign-day so nothing is counted twice. Spend matches the Microsoft Ads UI/API to the cent (June checked).</li>
+<li>⚠️ <b>Bing tracking gap Jun 21 – Jul 9:</b> all Bing signup goals drop ~95% while spend kept running, and paying shows 0 for Jun 17–30. Bing payers and CAC for June and July are not reliable (June CAC $24.9K is mostly the gap).</li>
+<li>Bing payer counts are small (5–28 a week), so weekly Bing CAC moves a lot. The monthly view is the better read.</li>
+<li>Payers come in late (about 84% within 30 days). Every week here is 30+ days old, so the numbers are close to final, Oct can still grow a little.</li>
+<li>Google Aug 5–11 (214 payers) is a known outlier, about 2x a normal week.</li></ul></div>
+</div>
+<script>
+const D={"labels": ["May 15\u201319 (partial)", "May 20\u201326", "May 27\u2013Jun 2", "Jun 3\u20139", "Jun 10\u201316", "Jun 17\u201323", "Jun 24\u201330", "Jul 1\u20137", "Jul 8\u201314", "Jul 15\u201321", "Jul 22\u201328", "Jul 29\u2013Aug 4", "Aug 5\u201311", "Aug 12\u201318", "Aug 19\u201325", "Aug 26\u2013Sep 1", "Sep 2\u20138", "Sep 9\u201315", "Sep 16\u201322", "Sep 23\u201329", "Sep 30\u2013Oct 6", "Oct 7\u201313", "Oct 14\u201315 (partial)"], "g_p": [72.0, 103.0, 128.0, 130.0, 99.0, 94.0, 94.0, 85.0, 76.0, 92.0, 82.0, 91.0, 214.0, 140.0, 133.0, 111.0, 78.0, 78.0, 93.0, 56.0, 70.0, 77.0, 23.0], "g_cac": [6704, 7455, 6614, 5694, 7208, 7470, 8117, 8412, 10138, 8785, 9499, 7588, 4771, 6486, 8270, 8119, 10734, 13916, 11047, 14710, 11673, 11386, 15888], "b_p": [19.0, 20.0, 16.0, 10.0, 7.0, 0.0, 0.0, 5.0, 4.0, 2.0, 5.0, 4.0, 11.0, 15.0, 9.0, 8.0, 11.0, 28.0, 23.0, 11.0, 17.0, 12.0, 5.0], "b_cac": [4348, 5449, 7777, 12972, 16363, null, null, 9818, 10868, 16499, 5146, 4849, 9049, 5866, 7225, 12397, 7928, 3673, 4015, 9079, 4939, 6479, 4967], "gap": [false, false, false, false, false, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]};
+function mk(id,p,c,col){new Chart(document.getElementById(id),{data:{labels:D.labels,datasets:[
+{type:'line',label:'CAC',data:D[c],borderColor:'#ff3d57',backgroundColor:'#ff3d57',yAxisID:'y1',tension:.3,spanGaps:true,pointRadius:3,order:0},
+{type:'bar',label:'Payers',data:D[p],backgroundColor:D.gap.map(g=>id==='cb'&&g?'#c3c6d4':col),borderRadius:5,yAxisID:'y',order:1}]},
+options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top'},tooltip:{callbacks:{label:x=>x.dataset.label==='CAC'?' CAC $'+(x.raw?x.raw.toLocaleString():'–'):' Payers '+x.raw}}},
+scales:{x:{ticks:{maxRotation:60,minRotation:45,font:{size:11}}},y:{beginAtZero:true,title:{display:true,text:'Payers'}},y1:{position:'right',beginAtZero:true,grid:{drawOnChartArea:false},title:{display:true,text:'CAC ($)'},ticks:{callback:v=>'$'+(v/1000)+'K'}}}}});}
+mk('cg','g_p','g_cac','#4285F4'); mk('cb','b_p','b_cac','#00A4EF');
+</script></body></html>
